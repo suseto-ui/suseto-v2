@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 # Explicitly add both possible home directory paths for Suseto
 paths_to_add = [
@@ -11,7 +11,9 @@ for p in paths_to_add:
     if os.path.exists(p) and p not in sys.path:
         sys.path.insert(0, p)
 
-from flask import Flask, jsonify, render_template, request, session, redirect, url_for, Response
+from flask import Flask, jsonify, render_template, request, session, Response
+
+from services.config import CONFIG
 from services.decision_engine import analyze_payload
 from services.generator_engine import profile_bundle
 from services.state_machine import build_state_graph, replay_path, get_state_detail
@@ -28,7 +30,7 @@ from services.audit_service import write as audit_write, list_entries as audit_l
 from services.decode_service import chain as decode_chain, pattern_library
 from services.location_service import list_locations, add_location
 from services.timeline_service import add as timeline_add, list_for as timeline_list
-app=Flask(__name__,template_folder="templates",static_folder="static"); app.config["TEMPLATES_AUTO_RELOAD"]=True; app.secret_key="suseto-pack21-secret"; application=app
+app=Flask(__name__,template_folder="templates",static_folder="static"); app.config["TEMPLATES_AUTO_RELOAD"]=True; app.secret_key=CONFIG["SECRET_KEY"]; application=app
 def current_user(): return {"username":session.get("username"),"role":session.get("role")} if session.get("username") else None
 def require_role(*roles):
     u=current_user()
@@ -259,6 +261,8 @@ def api_debug_env():
     import sys, time
     from pathlib import Path
     import flask
+    if not require_role("admin"):
+        return jsonify({"error":"Vyžadována role admin."}),403
     res = {"python": sys.version.split(" ")[0], "flask": flask.__version__}
 
     # 1. Write permission check

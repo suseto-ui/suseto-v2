@@ -1,6 +1,9 @@
-import json, hashlib, secrets, string
+import json, hashlib, secrets
 from datetime import datetime, timezone
 from pathlib import Path
+
+from services.config import CONFIG
+
 ROOT=Path(__file__).resolve().parent.parent/'data'; FILE=ROOT/'users.json'
 ROLES={'admin','operator','viewer'}
 def _now(): return datetime.now(timezone.utc).isoformat()
@@ -11,8 +14,8 @@ def _strong(password):
 def _ensure():
  ROOT.mkdir(exist_ok=True)
  if not FILE.exists():
-  salt=secrets.token_hex(8); pwd='admin123'
-  FILE.write_text(json.dumps({'users':[{'username':'admin','role':'admin','active':True,'created_at':_now(),'last_login':None,'must_change_password':True,'salt':salt,'password_hash':_hash(salt,pwd)}]},ensure_ascii=False,indent=2))
+  salt=secrets.token_hex(8); pwd=CONFIG['DEFAULT_ADMIN_PASSWORD']
+  FILE.write_text(json.dumps({'users':[{'username':CONFIG['ADMIN_USERNAME'],'role':'admin','active':True,'created_at':_now(),'last_login':None,'must_change_password':True,'salt':salt,'password_hash':_hash(salt,pwd)}]},ensure_ascii=False,indent=2))
 def _load(): _ensure(); return json.loads(FILE.read_text())
 def _save(data): ROOT.mkdir(exist_ok=True); FILE.write_text(json.dumps(data,ensure_ascii=False,indent=2))
 def list_users():
