@@ -5,6 +5,12 @@ from .aidc_service import _libraries
 MAX_ROWS=250
 
 def _clean(v): return str(v or '').strip()
+
+def _pick_output_format(kind, fmt):
+    if fmt in {'svg', 'png'}:
+        return fmt
+    return 'png' if kind == 'qr' else 'svg'
+
 def preview_csv(upload):
     if not upload or not upload.filename: return {"error":"Nahraj CSV soubor."},400
     try: text=upload.stream.read().decode('utf-8-sig'); upload.stream.seek(0)
@@ -42,10 +48,11 @@ def generate_batch(upload, column, kind, fmt):
             seen.add(value); image=io.BytesIO()
             try:
                 if kind=='qr':
-                    qr=qrcode.QRCode(box_size=8,border=4);qr.add_data(value);qr.make(fit=True);qr.make_image(fill_color='#111827',back_color='white').save(image,format='PNG' if fmt=='png' else 'PNG')
+                    qr=qrcode.QRCode(box_size=8,border=4);qr.add_data(value);qr.make(fit=True);qr.make_image(fill_color='#111827',back_color='white').save(image,format='PNG')
                     ext='png'
                 else:
-                    code=barcode.get(kind,value,writer=SVGWriter() if fmt=='svg' else ImageWriter());code.write(image);ext=fmt
+                    output_fmt=_pick_output_format(kind, fmt)
+                    code=barcode.get(kind,value,writer=SVGWriter() if output_fmt=='svg' else ImageWriter());code.write(image);ext=output_fmt
                 archive.writestr(f'codes/{n:03d}_{re.sub(r"[^A-Za-z0-9._-]","_",value)[:50]}.{ext}',image.getvalue());manifest.append([n,value,'generated',''])
             except Exception as exc: manifest.append([n,value,'skipped',str(exc)])
         report=io.StringIO();w=csv.writer(report);w.writerow(['row','payload','status','note']);w.writerows(manifest);archive.writestr('batch_report.csv',report.getvalue().encode('utf-8-sig'))
