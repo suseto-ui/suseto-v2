@@ -1,1 +1,61 @@
-<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{% block title %}Suseto v2{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static', filename='css/core.css') }}"></head><body><header class="site-header"><div class="shell shell-header"><a class="brand" href="{{ url_for('home') }}"><span class="brand-mark">⌘</span><span class="brand-text">Suseto v2</span></a><nav class="topnav" aria-label="Hlavní navigace"><a href="{{ url_for('home') }}">Rozcestník</a><a href="{{ url_for('login_page') }}">Login</a><a href="{{ url_for('profile_page') }}">Profil</a><details class="nav-group"><summary>AIDC</summary><div class="nav-menu"><a href="{{ url_for('aidc_studio') }}">AIDC Studio</a><a href="{{ url_for('aidc_batch') }}">AIDC Batch</a><a href="{{ url_for('scanner_lab') }}">Scanner Lab</a></div></details><details class="nav-group"><summary>Evidence</summary><div class="nav-menu"><a href="{{ url_for('registry') }}">Registry</a><a href="{{ url_for('label_profiles') }}">Label Profiles</a><a href="{{ url_for('dashboard') }}">Dashboard</a><a href="{{ url_for('inventory') }}">Inventura</a><a href="{{ url_for('locations_page') }}">Lokace</a><a href="{{ url_for('backup_center') }}">Zálohy</a><a href="{{ url_for('status_page') }}">Status</a><a href="{{ url_for('admin_page') }}">Admin</a><a href="{{ url_for('mobile_page') }}">Mobile</a><a href="{{ url_for('debug_page') }}">Debug</a><a href="{{ url_for('edu_page') }}">Edu</a></div></details><details class="nav-group"><summary>Analýza</summary><div class="nav-menu"><a href="{{ url_for('navigator') }}">Navigator</a><a href="{{ url_for('state_lab') }}">State Lab</a><a href="{{ url_for('transform_lab') }}">Transform Lab</a><a href="{{ url_for('insight_lab') }}">Insight Lab</a><a href="{{ url_for('decode_lab') }}">Decode Lab</a><a href="{{ url_for('label_designer') }}">Label Designer</a><a href="{{ url_for('expected_audit_page') }}">Expected Audit</a></div></details><details class="nav-group"><summary>Vývoj</summary><div class="nav-menu"><a href="{{ url_for('generator') }}">Generator</a><a href="{{ url_for('auth_lab') }}">Auth Lab</a><a href="{{ url_for('runs') }}">Runs</a><a href="{{ url_for('health') }}" target="_blank" rel="noopener noreferrer">Health</a></div></details></nav></div></header><main class="shell page-shell">{% block content %}{% endblock %}</main><script src="{{ url_for('static',filename='js/menu.js') }}"></script><script src="{{ url_for('static', filename='js/menu-delay.js') }}"></script></body></html>
+<!doctype html>
+<html lang="cs">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Suseto v2{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/core.css') }}">
+</head>
+
+<body>
+    <header class="site-header">
+        <div class="shell shell-header"><a class="brand" href="{{ url_for('home') }}"><span
+                    class="brand-mark">⌘</span><span class="brand-text">Suseto v2</span></a>
+            <nav class="topnav" aria-label="Hlavní navigace"><a href="{{ url_for('home') }}">Rozcestník</a><a
+                    href="{{ url_for('login_page') }}">Login</a><a href="{{ url_for('profile_page') }}">Profil</a>
+                <details class="nav-group">
+                    <summary>AIDC</summary>
+                    <div class="nav-menu"><a href="{{ url_for('aidc_studio') }}">AIDC Studio</a><a
+                            href="{{ url_for('aidc_batch') }}">AIDC Batch</a><a
+                            href="{{ url_for('scanner_lab') }}">Scanner Lab</a></div>
+                </details>
+                <details class="nav-group">
+                    <summary>Evidence</summary>
+                    <div class="nav-menu"><a href="{{ url_for('registry') }}">Registry</a><a
+                            href="{{ url_for('label_profiles') }}">Label Profiles</a><a
+                            href="{{ url_for('dashboard') }}">Dashboard</a><a
+                            href="{{ url_for('inventory') }}">Inventura</a><a
+                            href="{{ url_for('locations_page') }}">Lokace</a><a
+                            href="{{ url_for('backup_center') }}">Zálohy</a><a
+                            href="{{ url_for('status_page') }}">Status</a><a
+                            href="{{ url_for('admin_page') }}">Admin</a><a
+                            href="{{ url_for('mobile_page') }}">Mobile</a><a
+                            href="{{ url_for('debug_page') }}">Debug</a><a href="{{ url_for('edu_page') }}">Edu</a>
+                    </div>
+                </details>
+                <details class="nav-group">
+                    <summary>Analýza</summary>
+                    <div class="nav-menu"><a href="{{ url_for('navigator') }}">Navigator</a><a
+                            href="{{ url_for('state_lab') }}">State Lab</a><a
+                            href="{{ url_for('transform_lab') }}">Transform Lab</a><a
+                            href="{{ url_for('insight_lab') }}">Insight Lab</a><a
+                            href="{{ url_for('decode_lab') }}">Decode Lab</a><a
+                            href="{{ url_for('label_designer') }}">Label Designer</a><a
+                            href="{{ url_for('expected_audit_page') }}">Expected Audit</a></div>
+                </details>
+                <details class="nav-group">
+                    <summary>Vývoj</summary>
+                    <div class="nav-menu"><a href="{{ url_for('generator') }}">Generator</a><a
+                            href="{{ url_for('auth_lab') }}">Auth Lab</a><a href="{{ url_for('runs') }}">Runs</a><a
+                            href="{{ url_for('health') }}" target="_blank" rel="noopener noreferrer">Health</a></div>
+                </details>
+            </nav>
+        </div>
+    </header>
+    <main class="shell page-shell">{% block content %}{% endblock %}</main>
+    <script src="{{ url_for('static',filename='js/menu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/menu-delay.js') }}"></script>
+</body>
+
+</html>
