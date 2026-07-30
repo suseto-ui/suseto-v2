@@ -24,11 +24,12 @@ def try_b64(payload):
     if not re.fullmatch(r'[A-Za-z0-9+/=_-]{8,}',p): return None
     for alt in (False,True):
         try:
-            raw=base64.urlsafe_b64decode(p + '=' * (-len(p)%4)) if alt else base64.b64decode(p + '=' * (-len(p)%4))
+            decoder = base64.urlsafe_b64decode if alt else base64.b64decode
+            raw=decoder(p + '=' * (-len(p)%4))
             txt=raw.decode('utf-8','replace')
             return {'type':'base64->utf8','output':txt,'confidence':0.68+0.25*_ascii_ratio(txt),'reason':'Platný Base64 vstup a čitelný text.'}
-        except Exception:
-            pass
+        except (ValueError, binascii.Error):
+            continue
     return None
 
 def try_url(payload):
