@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block title %}Suseto | Decode Lab{% endblock %}
+{% block content %}
+<section class="page-head">
+  <div class="panel">
+    <div class="eyebrow">Decode Pipeline & Pattern Library</div>
+    <h1>Decode Lab</h1>
+    <p class="lead">Zkusí bezpečné převody payloadu a ukáže nejpravděpodobnější interpretace a vzory.</p>
+  </div>
+</section>
+<section class="aidc-layout">
+  <form id="decode-form" class="panel">
+    <label for="decode-payload">Payload</label>
+    <textarea id="decode-payload"></textarea>
+    <button class="btn btn-primary" type="submit">Analyzovat chain</button>
+    <label for="decode-many">Více payloadů pro Pattern Library</label>
+    <textarea id="decode-many" placeholder="Jeden payload na řádek"></textarea>
+    <button type="button" id="decode-library-btn" class="btn btn-secondary">Pattern Library</button>
+  </form>
+  <article class="panel">
+    <h2>Výstup</h2>
+    <div id="decode-out" class="stack"><div class="result-chip"><strong>Připraveno</strong><br><small>Vlož payload a spusť analýzu.</small></div></div>
+  </article>
+</section>
+<script src="{{ url_for('static', filename='js/decode_lab.js') }}"></script>
+{% endblock %}

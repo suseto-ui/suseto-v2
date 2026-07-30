@@ -1,0 +1,15 @@
+{% extends "layout.html" %}{% block title %}Suseto | Edu{% endblock %}{% block content %}
+<section class="page-head"><div class="panel"><div class="eyebrow">Průvodky a manuály</div><h1>Edu</h1><p class="lead">Rychlé návody k hlavním modulům systému a doporučené pracovní postupy.</p></div></section>
+<section class="card-grid">
+<article class="panel"><h2>Scanner Lab</h2><p>1. Načti QR nebo barcode kamerou, fotkou nebo ručně. 2. Prohlédni report a historii. 3. Otevři payload v Decode Labu nebo State Labu podle potřeby.</p></article>
+<article class="panel"><h2>Decode Lab</h2><p>1. Vlož payload. 2. Spusť chain analýzu. 3. Sleduj, zda dává smysl raw, HEX, Base64 nebo URL decode. 4. U více payloadů použij Pattern Library.</p></article>
+<article class="panel"><h2>State Lab</h2><p>1. Vyber seed nebo scan z historie. 2. Zkus Best First, Beam nebo Breadth First. 3. Sleduj frontier a replay, proč byla větev preferována.</p></article>
+<article class="panel"><h2>Inventura</h2><p>1. Vytvoř relaci. 2. Přidávej scany. 3. Kontroluj unikátní položky. 4. Pro porovnání se seznamem přejdi do Expected Audit.</p></article>
+<article class="panel"><h2>Administrace</h2><p>Admin spravuje uživatele, role, hesla, audit a zálohy. Operátor používá scanner, inventuru a lokace. Viewer má pouze náhled a kontrolu dat.</p></article>
+<article class="panel"><h2>Doporučený tok</h2><p>Scanner → Decode Lab → Registry / Inventura → Expected Audit → Dashboard / Status. Pro technickou kontrolu použij Debug stránku.</p></article>
+</section>
+<section class="aidc-layout"><article class="panel"><h2>Časté potíže</h2><div class="stack"><div class="result-chip"><strong>Nic se nezobrazuje</strong><br><small>Proveď Reload v PythonAnywhere a Ctrl + F5. Pak ověř `/debug` a `/health`.</small></div><div class="result-chip"><strong>Decode Lab je prázdný</strong><br><small>Zkus krátký payload jako `48656C6C6F`. Pokud nefunguje, zkontroluj načtení `decode_lab.js`.</small></div><div class="result-chip"><strong>401 nebo 403</strong><br><small>Nejprve se přihlas a ověř roli v `/admin` nebo `/profile`.</small></div></div></article><article class="panel"><h2>Ukázkové payloady</h2><pre class="hex-box">48656C6C6F2053555345544F
+V0lGSTpTOk15TmV0O1Q6V1BBO1A6MTIzNDU2Nzg7Ow==
+https%3A%2F%2Fsuseto.example%2Fasset%2F123
+(01)8594000000008(21)ABC123</pre></article></section>
+{% endblock %}
