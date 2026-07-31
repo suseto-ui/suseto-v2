@@ -15,8 +15,23 @@ async function selectState(id){selectedId=id; statusEl.textContent='Načítám d
 async function replay(){if(!graphData)return;statusEl.textContent='Přehrávám rozhodovací trasu…';const path=graphData.nodes.filter(n=>n.id!=='backtrack').map(n=>n.id);try{const d=await api('/api/v1/replay',{path});timelineEl.innerHTML=d.events.map(e=>`<li><span class="timeline-step">${e.step}</span><div><strong>${escapeHtml(e.label)}</strong><small>${escapeHtml(e.reason)} · ${Math.round(e.score*100)}%</small></div></li>`).join('');statusEl.textContent='Replay dokončen'}catch(e){timelineEl.innerHTML=`<li>Chyba: ${escapeHtml(e.message)}</li>`;statusEl.textContent='Replay selhal'}}
 function setupQueue(){let q=[];try{q=JSON.parse(localStorage.getItem('susetoStateQueue')||'[]')}catch(e){};if(!q.length)return;queuePanel.hidden=false;queueEl.innerHTML=q.map((v,i)=>`<button class="frontier-row" data-q="${i}" type="button"><span>Scan ${i+1}</span><strong>${escapeHtml(v.length>42?v.slice(0,42)+'…':v)}</strong></button>`).join('');queueEl.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{seedEl.value=q[+b.dataset.q];load()})}
 async function load(){statusEl.textContent='Načítám stavový graf…';try{graphData=await api('/api/v1/state-graph',{seed:seedEl.value.trim()||'demo'});renderGraph(graphData.nodes);renderFrontier(graphData.frontier);timelineEl.innerHTML='';await selectState(selectedId);statusEl.textContent='Graf je připraven'}catch(e){graphEl.innerHTML=chip('Chyba',e.message);statusEl.textContent='Načtení grafu selhalo'}}
-document.getElementById('load-graph').addEventListener('click',load);setupQueue();document.getElementById('replay-run').addEventListener('click',replay);load();
-const strategyEl=document.getElementById('strategy'),budgetEl=document.getElementById('budget');document.getElementById('run-heuristic')?.addEventListener('click',async()=>{statusEl.textContent='Počítám heuristickou frontier…';try{const d=await api('/api/v1/heuristic-run',{seed:seedEl.value.trim()||'demo',strategy:strategyEl.value,budget:+budgetEl.value});renderFrontier(d.frontier.map(x=>({...x,status:d.strategy})));statusEl.textContent=`Běh ${d.run.id}: ${d.frontier.length} kandidátů`;timelineEl.innerHTML=d.frontier.map((x,i)=>`<li><span class="timeline-step">${i+1}</span><div><strong>${escapeHtml(x.label)}</strong><small>score ${Math.round(x.score*100)}% · ${escapeHtml(d.strategy)}</small></div></li>`).join('')}catch(e){statusEl.textContent='Heuristický běh selhal'}});
+const loadGraphBtn = document.getElementById('load-graph'); if (loadGraphBtn) loadGraphBtn.addEventListener('click', load);
+if (typeof setupQueue === 'function') setupQueue();
+const replayRunBtn = document.getElementById('replay-run'); if (replayRunBtn) replayRunBtn.addEventListener('click', replay);
+if (typeof load === 'function') load();
+const strategyEl = document.getElementById('strategy'), budgetEl = document.getElementById('budget');
+const runHeuristicBtn = document.getElementById('run-heuristic');
+if (runHeuristicBtn) runHeuristicBtn.addEventListener('click', async () => {
+  if (!statusEl) return;
+  statusEl.textContent = 'Počítám heuristickou frontier…';
+  try {
+    const seedVal = seedEl ? (seedEl.value.trim() || 'demo') : 'demo';
+    const d = await api('/api/v1/heuristic-run', {seed: seedVal, strategy: strategyEl ? strategyEl.value : '', budget: budgetEl ? +budgetEl.value : 0});
+    if (typeof renderFrontier === 'function') renderFrontier(d.frontier.map(x=>({...x,status:d.strategy})));
+    statusEl.textContent = `Běh ${d.run.id}: ${d.frontier.length} kandidátů`;
+    if (timelineEl) timelineEl.innerHTML = d.frontier.map((x,i)=>`<li><span class="timeline-step">${i+1}</span><div><strong>${escapeHtml(x.label)}</strong><small>score ${Math.round(x.score*100)}% · ${escapeHtml(d.strategy)}</small></div></li>`).join('');
+  } catch(e) { statusEl.textContent = 'Heuristický běh selhal' }
+});
 document.addEventListener('DOMContentLoaded', () => {
     try {
         const queueStr = localStorage.getItem('susetoStateQueue');
