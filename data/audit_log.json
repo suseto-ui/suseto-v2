@@ -1,0 +1,32 @@
+[
+  {
+    "at": "2026-07-31T03:05:33.344444+00:00",
+    "action": "login",
+    "actor": "admin",
+    "detail": "admin"
+  },
+  {
+    "at": "2026-07-31T03:03:36.363872+00:00",
+    "action": "login",
+    "actor": "admin",
+    "detail": "admin"
+  },
+  {
+    "at": "2026-07-31T03:02:13.570557+00:00",
+    "action": "login",
+    "actor": "admin",
+    "detail": "admin"
+  },
+  {
+    "at": "2026-07-31T02:58:34.171640+00:00",
+    "action": "login",
+    "actor": "admin",
+    "detail": "admin"
+  },
+  {
+    "at": "2026-07-31T02:57:36.435950+00:00",
+    "action": "login",
+    "actor": "admin",
+    "detail": "admin"
+  }
+]
