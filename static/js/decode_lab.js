@@ -31,15 +31,8 @@ const doChain = async (e) => {
   try{renderChain(await callApi('/api/v1/decode/chain',{payload}))}catch(err){empty(err.message)}
 };
 form?.addEventListener('submit', doChain);
-  e.preventDefault();
-  const payload=(payloadEl?.value||'').trim();
-  if(!payload){empty('Nejprve vlož payload.'); return;}
-  empty('Analyzuji…');
-  try{renderChain(await callApi('/api/v1/decode/chain',{payload}))}catch(err){empty(err.message)}
-});
 libBtn?.addEventListener('click', async ()=>{
-  const vals=(manyEl?.value||'').split(/
-/).map(x=>x.trim()).filter(Boolean);
+  const vals=(manyEl?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   if(!vals.length){empty('Vlož alespoň jeden payload pro Pattern Library.'); return;}
   empty('Počítám Pattern Library…');
   try{renderLibrary(await callApi('/api/v1/decode/library',{payloads:vals}))}catch(err){empty(err.message)}
