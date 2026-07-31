@@ -30,8 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.removeItem('susetoStateQueue');
                     // Volitelne muzeme rovnou spustit build grafu
                     setTimeout(() => {
-                        const initBtn = document.getElementById('state-init');
-                        if(initBtn) initBtn.click();
+                        load();
                     }, 200);
                 }
             }
