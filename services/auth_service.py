@@ -1,4 +1,4 @@
-import json, hashlib, secrets
+﻿import json, hashlib, secrets
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -14,7 +14,8 @@ def _strong(password):
 def _ensure():
  ROOT.mkdir(exist_ok=True)
  if not FILE.exists():
-  salt=secrets.token_hex(8); pwd=CONFIG['DEFAULT_ADMIN_PASSWORD']
+  salt=secrets.token_hex(8)
+  pwd=CONFIG.get("DEFAULT_ADMIN_PASSWORD") or "admin123"
   FILE.write_text(json.dumps({'users':[{'username':CONFIG['ADMIN_USERNAME'],'role':'admin','active':True,'created_at':_now(),'last_login':None,'must_change_password':True,'salt':salt,'password_hash':_hash(salt,pwd)}]},ensure_ascii=False,indent=2))
 def _load(): _ensure(); return json.loads(FILE.read_text())
 def _save(data): ROOT.mkdir(exist_ok=True); FILE.write_text(json.dumps(data,ensure_ascii=False,indent=2))
@@ -62,3 +63,4 @@ def verify(username,password):
   if u['username']==username and u.get('active',True) and _hash(u['salt'],password)==u['password_hash']:
    u['last_login']=_now(); _save(data); return {'username':u['username'],'role':u['role'],'must_change_password':u.get('must_change_password',False)}
  return None
+
