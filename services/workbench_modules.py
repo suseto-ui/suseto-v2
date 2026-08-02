@@ -477,3 +477,187 @@ def compare_identifiers(raw_a: str, raw_b: str) -> Dict[str, Any]:
         "rozdily": diff,
         "pole_diff": field_diff,
     }
+
+
+# ── HEX DUMP VIEWER ──────────────────────────────────────────────────────────
+def hex_dump_view(raw: str) -> Dict[str, Any]:
+    """Analyza libovolneho hex retezce - offset tabulka, ASCII preview, detekce hlavicek."""
+    clean = re.sub(r'[^0-9a-fA-F]', '', raw)
+    if len(clean) % 2 != 0:
+        clean = clean[:-1]
+    if not clean:
+        return {"ok": False, "error": "Zadny platny HEX vstup"}
+
+    data = bytes.fromhex(clean)
+    lines = []
+    for i in range(0, len(data), 16):
+        chunk = data[i:i+16]
+        hex_part = ' '.join(f'{b:02X}' for b in chunk)
+        ascii_part = ''.join(chr(b) if 32 <= b < 127 else '.' for b in chunk)
+        lines.append({
+            "offset": f"{i:04X}",
+            "hex": hex_part,
+            "ascii": ascii_part,
+        })
+
+    # Detekce znamych hlavicek
+    signatures = {
+        "FFD8FF": "JPEG image",
+        "89504E47": "PNG image",
+        "504B0304": "ZIP/Office file",
+        "25504446": "PDF file",
+        "4D5A": "Windows PE/EXE",
+        "1F8B": "GZIP compressed",
+        "7F454C46": "ELF binary (Linux)",
+        "CAFEBABE": "Java class file",
+        "D0CF11E0": "OLE2 (old Office)",
+        "3082": "ASN.1 / X.509 cert",
+    }
+    detected_sig = None
+    for sig, label in signatures.items():
+        if clean.upper().startswith(sig):
+            detected_sig = label
+            break
+
+    # Shannon entropie dat
+    if data:
+        from collections import Counter
+        counts = Counter(data)
+        entropy = -sum((c/len(data)) * math.log2(c/len(data)) for c in counts.values())
+    else:
+        entropy = 0.0
+
+    return {
+        "ok": True,
+        "length_bytes": len(data),
+        "lines": lines,
+        "signature": detected_sig,
+        "entropy": round(entropy, 3),
+        "entropy_verdict": "nahodny/sifrovany" if entropy > 7.0 else "strukturovany" if entropy < 4.0 else "smiseny",
+        "raw_hex": clean.upper(),
+    }
+
+
+# ── URL DECODER / ANALYZER ────────────────────────────────────────────────────
+def url_decode_analyze(raw: str) -> Dict[str, Any]:
+    """Dekodovani a forenzni analyza URL - parametry, tokeny, rizika."""
+    from urllib.parse import urlparse, parse_qs, unquote, unquote_plus
+    import base64 as b64
+
+    # Postupne dekodovat %xx
+    decoded_once = unquote(raw)
+    decoded_twice = unquote(decoded_once)
+
+    result = {
+        "original": raw,
+        "decoded_once": decoded_once,
+        "decoded_twice": decoded_twice,
+        "double_encoded": decoded_once != decoded_twice,
+    }
+
+    # Parsovat jako URL
+    try:
+        parsed = urlparse(decoded_once)
+        params = parse_qs(parsed.query)
+        result["parsed"] = {
+            "scheme": parsed.scheme,
+            "host": parsed.netloc,
+            "path": parsed.path,
+            "params": {k: v[0] if len(v)==1 else v for k,v in params.items()},
+            "fragment": parsed.fragment,
+        }
+
+        # Analyza parametru
+        risks = []
+        interesting_params = []
+        for k, vals in params.items():
+            v = vals[0] if vals else ""
+            # JWT v parametru?
+            if v.count('.') == 2 and len(v) > 50:
+                interesting_params.append({"param": k, "hint": "mozny JWT token"})
+                risks.append(f"Parametr '{k}' obsahuje JWT-like hodnotu")
+            # Base64?
+            if len(v) > 8 and all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=' for c in v):
+                try:
+                    dec = b64.b64decode(v + '===').decode('utf-8', 'ignore')
+                    if any(c.isprintable() and not c.isspace() for c in dec[:20]):
+                        interesting_params.append({"param": k, "hint": "base64", "decoded": dec[:80]})
+                except Exception:
+                    pass
+            # Redirect?
+            kl = k.lower()
+            if kl in ('redirect', 'return', 'next', 'url', 'goto', 'redirect_uri', 'callback'):
+                risks.append(f"Open redirect parametr: '{k}'")
+            # SQL injection znaky?
+            if any(s in v for s in ("'", '"', '--', 'OR 1', 'UNION', 'SELECT')):
+                risks.append(f"Mozny SQLi v parametru '{k}'")
+
+        result["interesting_params"] = interesting_params
+        result["risks"] = risks
+        result["risk_score"] = len(risks) * 15
+    except Exception as e:
+        result["parse_error"] = str(e)
+
+    return result
+
+
+# ── CHECKSUM LAB ──────────────────────────────────────────────────────────────
+def checksum_lab(raw: str, mode: str = "auto") -> Dict[str, Any]:
+    """Vypocet a validace ruznych kontrolnich souctu."""
+    import hashlib
+    import binascii
+
+    results: Dict[str, Any] = {"input": raw, "mode": mode, "checksums": {}}
+
+    # Standardni hashe (vzdy)
+    raw_b = raw.encode('utf-8')
+    results["checksums"]["md5"] = hashlib.md5(raw_b).hexdigest()
+    results["checksums"]["sha1"] = hashlib.sha1(raw_b).hexdigest()
+    results["checksums"]["sha256"] = hashlib.sha256(raw_b).hexdigest()
+    results["checksums"]["crc32"] = format(binascii.crc32(raw_b) & 0xFFFFFFFF, '08X')
+
+    # Luhn (kreditni karty, IMEI)
+    digits = re.sub(r'\D', '', raw)
+    if digits and (mode in ('auto', 'luhn')):
+        def luhn_check(n):
+            s = 0
+            odd = True
+            for d in reversed(n):
+                x = int(d)
+                if not odd:
+                    x *= 2
+                    if x > 9: x -= 9
+                s += x
+                odd = not odd
+            return s % 10 == 0
+        luhn_valid = luhn_check(digits)
+        results["checksums"]["luhn"] = {"digits": digits, "valid": luhn_valid}
+
+    # EAN checksum
+    if len(digits) in (8, 13) and (mode in ('auto', 'ean')):
+        weights = [1, 3] * 10
+        total = sum(int(d) * w for d, w in zip(digits[:-1], weights[:len(digits)-1]))
+        check_digit = (10 - (total % 10)) % 10
+        results["checksums"]["ean"] = {
+            "digits": digits,
+            "computed_check": check_digit,
+            "provided_check": int(digits[-1]),
+            "valid": check_digit == int(digits[-1]),
+        }
+
+    # GTIN-14
+    if len(digits) == 14 and (mode in ('auto', 'gtin14')):
+        weights = [3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3]
+        total = sum(int(d) * w for d, w in zip(digits[:-1], weights))
+        check_digit = (10 - (total % 10)) % 10
+        results["checksums"]["gtin14"] = {
+            "computed_check": check_digit,
+            "provided_check": int(digits[-1]),
+            "valid": check_digit == int(digits[-1]),
+        }
+
+    # ISBN-13 (= EAN-13 s prefixem 978/979)
+    if len(digits) == 13 and digits[:3] in ('978', '979') and (mode in ('auto', 'isbn')):
+        results["checksums"]["isbn13_valid"] = results["checksums"].get("ean", {}).get("valid", False)
+
+    return results
