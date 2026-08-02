@@ -1,1 +1,25 @@
-{% extends "layout.html" %}{% block title %}Suseto v2 | AIDC Dispečink{% endblock %}{% block content %}<section class="hero-panel"><div class="hero-copy panel"><div class="eyebrow">AIDC / Payload Analysis / Decision Tree</div><h1>AIDC Centrální Dispečink nové generace</h1><p>Navigator, Generator, Legacy Lab a State Lab sdružují analýzu, tvorbu a řízené prohledávání do modulární architektury.</p><div class="hero-actions"><a class="btn btn-primary" href="{{ url_for('navigator') }}">Navigator</a><a class="btn btn-secondary" href="{{ url_for('generator') }}">Generator</a></div></div><div class="panel"><h2>Obsáhlejší balík</h2><ul class="clean-list"><li>Stavový stroj a replay.</li><li>Rozšířený generator profilů.</li><li>Stránka State Lab připravená.</li></ul></div></section>{% include 'partials/module_cards.html' %}{% endblock %}
+{% extends "layout.html" %}
+{% block title %}Suseto v2 | AIDC Dispatching{% endblock %}
+{% block content %}
+<section class="hero-panel">
+  <div class="hero-copy panel">
+    <div class="eyebrow">AIDC / Payload Analysis / Decision Tree</div>
+    <h1>AIDC Centralni Dispatching</h1>
+    <p>Navigator, Generator, State Lab a Workbench sdruzi analyzu, tvorbu a rizene prohledavani do modularne architektury.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{ url_for('navigator') }}">Navigator</a>
+      <a class="btn btn-secondary" href="{{ url_for('generator') }}">Generator</a>
+      <a class="btn btn-secondary" href="/workbench">Workbench</a>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Aktualn&#237; moduly</h2>
+    <ul class="clean-list">
+      <li>Stavovy stroj a replay &mdash; State Lab</li>
+      <li>Rozsireny generator profilu &mdash; Generator</li>
+      <li>Data &amp; Identifier Analysis Workbench &mdash; 13 analytickych nastroju</li>
+    </ul>
+  </div>
+</section>
+{% include 'partials/module_cards.html' %}
+{% endblock %}
