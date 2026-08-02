@@ -1,1 +1,27 @@
-document.querySelectorAll('.nav-group').forEach(group=>{group.addEventListener('mouseenter',()=>{if(matchMedia('(hover:hover)').matches){document.querySelectorAll('.nav-group[open]').forEach(x=>{if(x!==group)x.open=false});group.open=true}});group.addEventListener('mouseleave',()=>{if(matchMedia('(hover:hover)').matches)group.open=false});group.querySelector('summary').addEventListener('click',()=>{document.querySelectorAll('.nav-group[open]').forEach(x=>{if(x!==group)x.open=false})})});
+document.addEventListener('DOMContentLoaded', function () {
+  var groups = document.querySelectorAll('.nav-group');
+  if (!groups.length) return;
+
+  // menu-delay.js resi desktop hover/chovani.
+  // Tady nechame jen bezpecne mobilni/klik chovani, aby se skripty netloukly.
+  groups.forEach(function (group) {
+    var summary = group.querySelector('summary');
+    if (!summary) return;
+
+    summary.addEventListener('click', function () {
+      var isDesktop = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+      if (isDesktop) {
+        document.querySelectorAll('.nav-group[open]').forEach(function (x) {
+          if (x !== group) x.removeAttribute('open');
+        });
+        return;
+      }
+
+      setTimeout(function () {
+        document.querySelectorAll('.nav-group[open]').forEach(function (x) {
+          if (x !== group) x.removeAttribute('open');
+        });
+      }, 0);
+    });
+  });
+});
