@@ -1,581 +1,149 @@
 {% extends "layout.html" %}
-{% block title %}Workbench — Data & Identifier Analysis{% endblock %}
-
+{% block title %}Workbench – suseto{% endblock %}
 {% block content %}
-<div class="page-header">
-  <h1>Data &amp; Identifier Analysis Workbench</h1>
-  <p class="subtitle">Analyzuj, identifikuj a reverzně rozeber libovolný identifikátor.</p>
-</div>
+<div class="container" style="max-width:980px;margin:0 auto;padding:2rem 1rem 4rem;">
 
-<div class="wb-tabs" id="wbTabs">
-  <button class="wb-tab active" data-tab="ingest">🔍 Ingest &amp; Analýza</button>
-  <button class="wb-tab" data-tab="batch">📦 Batch</button>
-  <button class="wb-tab" data-tab="timeline">📅 Timeline</button>
-  <button class="wb-tab" data-tab="patterns">🔎 Vzory</button>
-  <button class="wb-tab" data-tab="gs1">🏷️ GS1/GTIN</button>
-  <button class="wb-tab" data-tab="rfid">📡 RFID/NFC</button>
-  <button class="wb-tab" data-tab="entropy">📊 Entropie</button>
-  <button class="wb-tab" data-tab="jwt">🔑 JWT</button>
-  <button class="wb-tab" data-tab="creds">🛡️ Credentials</button>
-  <button class="wb-tab" data-tab="compare">⚖️ Porovnání</button>
-</div>
-
-<!-- TAB: INGEST & ANALÝZA -->
-<div class="wb-panel active" id="tab-ingest">
-  <div class="wb-grid2">
-    <section class="wb-card">
-      <h2>1. Ingest</h2>
-      <p class="hint">Vlož payload — QR, URL, HEX, base64, JWT, GTIN, MAC, access_gate…</p>
-      <textarea id="wb_raw" rows="5" placeholder="Vlož identifikátor..."></textarea>
-      <button id="wb_ingest" class="btn-primary">Normalizovat a typovat</button>
-      <div id="wb_type_badge" class="wb-badge" style="display:none"></div>
-    </section>
-    <section class="wb-card">
-      <h2>2. Analysis Pipeline</h2>
-      <button id="wb_run_analysis" class="btn-secondary">Spustit analýzu</button>
-      <div id="wb_risk" class="wb-risk" style="display:none"></div>
-      <pre id="wb_analysis" class="json-out"></pre>
-    </section>
-    <section class="wb-card">
-      <h2>3. Reverse Engineering</h2>
-      <button id="wb_run_reverse" class="btn-secondary">Spustit RE analýzu</button>
-      <pre id="wb_reverse" class="json-out"></pre>
-    </section>
-    <section class="wb-card">
-      <h2>4. Test Harness</h2>
-      <label>Cílový endpoint:</label>
-      <input id="wb_target" placeholder="https://suseto.pythonanywhere.com/api/v1/workbench/ingest">
-      <label>Režim:</label>
-      <select id="wb_mode">
-        <option value="url">URL fuzzing</option>
-        <option value="hex">HEX fuzzing</option>
-        <option value="base64">Base64 fuzzing</option>
-        <option value="gtin">GTIN fuzzing</option>
-        <option value="access_gate">Access Gate fuzzing</option>
-      </select>
-      <label>Počet běhů:</label>
-      <input id="wb_runs" type="number" value="3" min="1" max="20" style="width:80px">
-      <button id="wb_run_tests" class="btn-warning">Spustit testy</button>
-      <pre id="wb_report" class="json-out"></pre>
-    </section>
+  <div style="margin-bottom:2rem;">
+    <h1 style="font-size:1.7rem;font-weight:700;margin-bottom:.25rem;">🔬 Data &amp; Identifier Analysis Workbench</h1>
+    <p style="color:var(--color-text-muted,#666);font-size:.95rem;">Univerzální analyzátor a reverzní inženýr identifikátorů — QR, EAN, HEX, URL, JWT, base64, IMEI, UUID a více.</p>
   </div>
-</div>
 
-<!-- TAB: BATCH -->
-<div class="wb-panel" id="tab-batch">
-  <section class="wb-card wb-card-full">
-    <h2>📦 Batch Analyzer</h2>
-    <p class="hint">Vlož CSV s kódy (první řádek = hlavička). Sloupec: <code>code</code> nebo zadej vlastní.</p>
-    <div class="wb-row">
-      <label>Název sloupce:</label>
-      <input id="batch_col" value="code" style="width:120px">
-      <button id="batch_run" class="btn-primary">Analyzovat CSV</button>
-      <button id="batch_export" class="btn-secondary" style="display:none">📥 Export CSV</button>
+  <!-- ── STEP 1: INGEST ── -->
+  <section class="wb-card" style="margin-bottom:1.5rem;">
+    <h2 class="wb-section-title">① Ingest &amp; Normalizace</h2>
+    <p class="wb-hint">Vlož libovolný identifikátor – QR payload, EAN čárový kód, URL, JWT token, HEX string, IMEI, UUID, base64 nebo JSON.</p>
+    <textarea id="wb_raw" rows="4" placeholder="Vlož identifikátor sem…" style="width:100%;font-family:monospace;font-size:.9rem;padding:.75rem;border:1px solid var(--color-border,#ccc);border-radius:6px;resize:vertical;"></textarea>
+    <div style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+      <button id="wb_btn_ingest" class="btn btn-primary">Normalizovat &amp; typovat</button>
+      <button id="wb_btn_analyze" class="btn btn-secondary">▶ Analyzovat pipeline</button>
+      <button id="wb_btn_reverse" class="btn btn-secondary">🔍 Reverzní inženýrství</button>
+      <button id="wb_btn_clear" class="btn btn-ghost" style="margin-left:auto;">Vymazat</button>
     </div>
-    <textarea id="batch_csv" rows="8" placeholder="code&#10;06261921350400100000046639&#10;06262018324800100000009689"></textarea>
-    <div id="batch_stats" class="wb-stats" style="display:none"></div>
-    <pre id="batch_result" class="json-out"></pre>
   </section>
-</div>
 
-<!-- TAB: TIMELINE -->
-<div class="wb-panel" id="tab-timeline">
-  <section class="wb-card wb-card-full">
-    <h2>📅 Timeline průchodů</h2>
-    <p class="hint">Vlož kódy vstupní brány (každý na nový řádek nebo oddělené čárkou).</p>
-    <textarea id="tl_codes" rows="6" placeholder="06261921350400100000046639&#10;06262018324800100000009689&#10;06261921491300100000037699"></textarea>
-    <button id="tl_run" class="btn-primary">Sestavit timeline</button>
-    <div id="tl_visual" class="wb-timeline-list"></div>
-    <pre id="tl_result" class="json-out"></pre>
+  <!-- ── STEP 2: RESULTS ── -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
+
+    <section class="wb-card">
+      <h2 class="wb-section-title">② Identifikátor</h2>
+      <div id="wb_type_badge" style="margin-bottom:.5rem;"></div>
+      <pre id="wb_identifier" class="wb-pre">–</pre>
+    </section>
+
+    <section class="wb-card">
+      <h2 class="wb-section-title">③ Analýza rizik</h2>
+      <div id="wb_risk_bar" style="margin-bottom:.75rem;"></div>
+      <pre id="wb_analysis" class="wb-pre">–</pre>
+    </section>
+
+  </div>
+
+  <!-- ── STEP 3: REVERSE ── -->
+  <section class="wb-card" style="margin-bottom:1.5rem;">
+    <h2 class="wb-section-title">④ Reverzní inženýrství</h2>
+    <p class="wb-hint">Automaticky zkusí base64, hex→ASCII, zlib, URL-decode a odhadne Shannon entropii.</p>
+    <div id="wb_entropy_bar" style="margin-bottom:.75rem;"></div>
+    <pre id="wb_reverse" class="wb-pre">–</pre>
   </section>
-</div>
 
-<!-- TAB: VZORY -->
-<div class="wb-panel" id="tab-patterns">
-  <section class="wb-card wb-card-full">
-    <h2>🔎 Pattern Detector</h2>
-    <p class="hint">Detekce anomálií: neobvyklé časy průchodů, high-frequency karty, alarmy.</p>
-    <textarea id="pt_codes" rows="6" placeholder="Vlož access_gate kódy..."></textarea>
-    <button id="pt_run" class="btn-primary">Detekovat vzory</button>
-    <div id="pt_alerts" class="wb-alerts"></div>
-    <pre id="pt_result" class="json-out"></pre>
-  </section>
-</div>
-
-<!-- TAB: GS1 -->
-<div class="wb-panel" id="tab-gs1">
-  <section class="wb-card wb-card-full">
-    <h2>🏷️ GS1 / GTIN Parser</h2>
-    <p class="hint">EAN-8, EAN-13, UPC-A, GTIN-14, SSCC — dekódování + zemský prefix + checksum.</p>
-    <div class="wb-row">
-      <input id="gs1_raw" placeholder="8595067600011" style="flex:1">
-      <button id="gs1_run" class="btn-primary">Parsovat GS1</button>
-    </div>
-    <pre id="gs1_result" class="json-out"></pre>
-  </section>
-</div>
-
-<!-- TAB: RFID -->
-<div class="wb-panel" id="tab-rfid">
-  <section class="wb-card wb-card-full">
-    <h2>📡 RFID / NFC Dump Parser</h2>
-    <p class="hint">Vlož HEX dump karty (Mifare Classic, NFC NDEF, HID). Detekuje UID, typ karty, výchozí klíče.</p>
-    <textarea id="rfid_raw" rows="5" placeholder="AABBCCDD 00000000 00000000 00000000..."></textarea>
-    <button id="rfid_run" class="btn-primary">Parsovat dump</button>
-    <pre id="rfid_result" class="json-out"></pre>
-  </section>
-</div>
-
-<!-- TAB: ENTROPIE -->
-<div class="wb-panel" id="tab-entropy">
-  <section class="wb-card wb-card-full">
-    <h2>📊 Entropy Analyzer</h2>
-    <p class="hint">Shannonova entropie — zjisti zda je string náhodný, šifrovaný, nebo strukturovaný.</p>
-    <div class="wb-row">
-      <input id="ent_raw" placeholder="Vlož jakýkoliv string..." style="flex:1">
-      <button id="ent_run" class="btn-primary">Analyzovat entropii</button>
-    </div>
-    <div id="ent_meter" style="display:none;margin-top:.5rem">
-      <div class="wb-entropy-bar"><div id="ent_bar" class="wb-entropy-fill"></div></div>
-      <div id="ent_verdict" class="hint"></div>
-    </div>
-    <pre id="ent_result" class="json-out"></pre>
-  </section>
-</div>
-
-<!-- TAB: JWT -->
-<div class="wb-panel" id="tab-jwt">
-  <section class="wb-card wb-card-full">
-    <h2>🔑 JWT Inspector</h2>
-    <p class="hint">Dekóduj JWT token — header, payload, platnost, algoritmus, rizika.</p>
-    <textarea id="jwt_raw" rows="4" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."></textarea>
-    <button id="jwt_run" class="btn-primary">Inspektovat JWT</button>
-    <div id="jwt_warnings" class="wb-alerts"></div>
-    <pre id="jwt_result" class="json-out"></pre>
-  </section>
-</div>
-
-<!-- TAB: CREDENTIALS -->
-<div class="wb-panel" id="tab-creds">
-  <section class="wb-card wb-card-full">
-    <h2>🛡️ Credential Scanner</h2>
-    <p class="hint">Skenuje text na API klíče, hesla, JWT tokeny, AWS klíče, connection stringy a další citlivá data.</p>
-    <textarea id="creds_text" rows="8" placeholder="Vlož libovolný text, kód, konfiguraci, log..."></textarea>
-    <button id="creds_run" class="btn-warning">Skenovat</button>
-    <div id="creds_summary" class="wb-stats" style="display:none"></div>
-    <pre id="creds_result" class="json-out"></pre>
-  </section>
-</div>
-
-<!-- TAB: POROVNÁNÍ -->
-<div class="wb-panel" id="tab-compare">
-  <section class="wb-card wb-card-full">
-    <h2>⚖️ Porovnání identifikátorů</h2>
-    <p class="hint">Porovnej dva identifikátory pole po poli.</p>
-    <div class="wb-compare-grid">
-      <div>
-        <label>Identifikátor A:</label>
-        <textarea id="cmp_a" rows="4" placeholder="První kód..."></textarea>
+  <!-- ── STEP 4: TEST HARNESS ── -->
+  <section class="wb-card">
+    <h2 class="wb-section-title">⑤ Test Harness – automatické testování endpointu</h2>
+    <p class="wb-hint">Pošle syntetické payloady na zvolený endpoint a nasbírá odpovědi. Vhodné pro testování vlastního AIDC API.</p>
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:.75rem;">
+      <div style="flex:2;min-width:220px;">
+        <label class="wb-label">Cílový endpoint (URL)</label>
+        <input id="wb_target" type="url" placeholder="https://…/api/v1/aidc/analyze-scan"
+          style="width:100%;padding:.55rem .75rem;border:1px solid var(--color-border,#ccc);border-radius:6px;font-size:.9rem;">
       </div>
-      <div>
-        <label>Identifikátor B:</label>
-        <textarea id="cmp_b" rows="4" placeholder="Druhý kód..."></textarea>
+      <div style="min-width:120px;">
+        <label class="wb-label">Typ payloadu</label>
+        <select id="wb_mode"
+          style="width:100%;padding:.55rem .75rem;border:1px solid var(--color-border,#ccc);border-radius:6px;font-size:.9rem;">
+          <option value="url">URL fuzzing</option>
+          <option value="hex">HEX fuzzing</option>
+          <option value="ean13">EAN-13</option>
+          <option value="base64">Base64</option>
+        </select>
       </div>
+      <div style="min-width:80px;">
+        <label class="wb-label">Počet testů</label>
+        <input id="wb_runs" type="number" value="5" min="1" max="20"
+          style="width:100%;padding:.55rem .75rem;border:1px solid var(--color-border,#ccc);border-radius:6px;font-size:.9rem;">
+      </div>
+      <button id="wb_btn_test" class="btn btn-primary">Spustit testy</button>
     </div>
-    <button id="cmp_run" class="btn-primary">Porovnat</button>
-    <div id="cmp_diff" class="wb-diff"></div>
-    <pre id="cmp_result" class="json-out"></pre>
+    <div id="wb_test_summary" style="margin-bottom:.5rem;"></div>
+    <pre id="wb_report" class="wb-pre">–</pre>
   </section>
+
 </div>
 
 <style>
-:root{--wb-bg:#111;--wb-surface:#1a1a1a;--wb-border:#2a2a2a;--wb-accent:#4fc3f7;--wb-green:#69f0ae;--wb-red:#ff6b6b;--wb-yellow:#ffd54f;--wb-orange:#ffb74d}
-.wb-tabs{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1rem}
-.wb-tab{background:var(--wb-surface);border:1px solid var(--wb-border);color:#aaa;padding:.35rem .75rem;border-radius:6px;cursor:pointer;font-size:.8rem;transition:all .15s}
-.wb-tab:hover{border-color:var(--wb-accent);color:var(--wb-accent)}
-.wb-tab.active{background:var(--wb-accent);color:#000;border-color:var(--wb-accent);font-weight:600}
-.wb-panel{display:none}.wb-panel.active{display:block}
-.wb-grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.wb-card{background:var(--wb-surface);border:1px solid var(--wb-border);border-radius:8px;padding:1.25rem;display:flex;flex-direction:column;gap:.6rem}
-.wb-card-full{width:100%}
-.wb-card h2{font-size:.95rem;font-weight:600;margin:0;color:var(--wb-accent)}
-.json-out{background:#0a0a0a;color:var(--wb-green);border-radius:6px;padding:.75rem;font-size:.72rem;max-height:350px;overflow:auto;white-space:pre-wrap;word-break:break-all;min-height:30px;margin:0}
-.hint{font-size:.78rem;color:#666;margin:0}
-textarea,input[type=text],input:not([type=number]):not([type=submit]){width:100%;background:#0d0d0d;border:1px solid var(--wb-border);color:#ccc;border-radius:5px;padding:.4rem .6rem;font-family:monospace;font-size:.8rem}
-select{background:#0d0d0d;border:1px solid var(--wb-border);color:#ccc;border-radius:5px;padding:.35rem .5rem;font-size:.8rem}
-label{font-size:.78rem;color:#888}
-.wb-badge{display:inline-block;padding:.2rem .6rem;border-radius:10px;font-size:.78rem;font-weight:700;background:#1565c0;color:#fff}
-.wb-risk{padding:.35rem .7rem;border-radius:5px;font-size:.8rem;font-weight:600}
-.wb-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
-.wb-stats{background:#0d0d0d;border:1px solid var(--wb-border);border-radius:6px;padding:.6rem 1rem;font-size:.8rem;color:#ccc}
-.wb-timeline-list{display:flex;flex-direction:column;gap:.3rem;margin:.5rem 0}
-.wb-tl-item{display:flex;gap:.75rem;align-items:center;background:#0d0d0d;border-radius:5px;padding:.4rem .7rem;font-size:.78rem;border-left:3px solid var(--wb-accent)}
-.wb-tl-item.exit{border-left-color:var(--wb-orange)}
-.wb-tl-item.alarm{border-left-color:var(--wb-red)}
-.wb-alerts{display:flex;flex-direction:column;gap:.3rem;margin:.3rem 0}
-.wb-alert{padding:.35rem .7rem;border-radius:5px;font-size:.78rem;font-weight:600}
-.wb-alert.kriticka{background:#3d0000;color:var(--wb-red);border:1px solid var(--wb-red)}
-.wb-alert.vysoka{background:#3d2200;color:var(--wb-orange);border:1px solid var(--wb-orange)}
-.wb-alert.stredni{background:#3d3200;color:var(--wb-yellow);border:1px solid var(--wb-yellow)}
-.wb-entropy-bar{height:12px;background:#222;border-radius:6px;overflow:hidden;margin:.3rem 0}
-.wb-entropy-fill{height:100%;border-radius:6px;transition:width .5s,background .5s}
-.wb-compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
-.wb-diff{display:flex;flex-direction:column;gap:.25rem;margin:.4rem 0}
-.wb-diff-row{display:flex;gap:.5rem;font-size:.78rem;padding:.25rem .5rem;border-radius:4px}
-.wb-diff-row.diff{background:#2a1500;border-left:3px solid var(--wb-orange)}
-.wb-diff-row.same{background:#0a1a0a;border-left:3px solid #2a5c2a}
-@media(max-width:768px){.wb-grid2,.wb-compare-grid{grid-template-columns:1fr}.wb-tabs{gap:.25rem}}
+.wb-card {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  padding: 1.25rem 1.25rem 1rem;
+}
+.wb-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: .5rem;
+  color: var(--color-text, #111);
+}
+.wb-hint {
+  font-size: .85rem;
+  color: var(--color-text-muted, #666);
+  margin-bottom: .75rem;
+}
+.wb-label {
+  display: block;
+  font-size: .8rem;
+  font-weight: 600;
+  margin-bottom: .25rem;
+  color: var(--color-text-muted, #555);
+}
+.wb-pre {
+  font-family: 'Fira Mono', 'Consolas', monospace;
+  font-size: .8rem;
+  background: var(--color-surface-offset, #f5f5f5);
+  border-radius: 5px;
+  padding: .75rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 340px;
+  overflow-y: auto;
+  margin: 0;
+}
+.wb-badge {
+  display: inline-block;
+  padding: .2rem .7rem;
+  border-radius: 99px;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.wb-risk-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #22c55e 0%, #facc15 50%, #ef4444 100%);
+  position: relative;
+  margin-bottom: .25rem;
+}
+.wb-risk-cursor {
+  position: absolute;
+  top: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: 2px solid #fff;
+  transform: translateX(-50%);
+}
 </style>
-<!-- TAB: HEX DUMP VIEWER -->
-<div class="wb-panel" id="tab-hex">
-  <section class="wb-card wb-card-full">
-    <h2>&#128187; HEX Dump Viewer</h2>
-    <p class="hint">Vloz HEX retezec (s mezerami nebo bez). Zobrazi offset tabulku, ASCII, detekci formatu a entropii.</p>
-    <textarea id="hex_raw" rows="5" placeholder="FF D8 FF E0 00 10 4A 46 49 46 ..."></textarea>
-    <button id="hex_run" class="btn-primary">Analyzovat HEX</button>
-    <div id="hex_sig" style="display:none;margin:.5rem 0;padding:.3rem .7rem;border-radius:5px;background:#1a2a1a;color:#69f0ae;font-size:.8rem;font-weight:700"></div>
-    <div id="hex_entropy" style="display:none;margin-bottom:.5rem;font-size:.78rem;color:#aaa"></div>
-    <div id="hex_table_wrap" style="display:none;overflow-x:auto;margin-top:.5rem">
-      <table id="hex_table" style="border-collapse:collapse;font-family:monospace;font-size:.72rem;width:100%">
-        <thead><tr>
-          <th style="color:#4fc3f7;padding:.2rem .5rem;text-align:left">Offset</th>
-          <th style="color:#4fc3f7;padding:.2rem .5rem;text-align:left">HEX (16 bytů)</th>
-          <th style="color:#4fc3f7;padding:.2rem .5rem;text-align:left">ASCII</th>
-        </tr></thead>
-        <tbody id="hex_tbody"></tbody>
-      </table>
-    </div>
-    <pre id="hex_result" class="json-out"></pre>
-  </section>
-</div>
-
-<!-- TAB: URL DEKODER -->
-<div class="wb-panel" id="tab-url">
-  <section class="wb-card wb-card-full">
-    <h2>&#128279; URL Dekoder &amp; Analyzer</h2>
-    <p class="hint">Forenzni analyza URL &mdash; parametry, tokeny, open redirect, SQLi, base64 v parametrech.</p>
-    <textarea id="url_raw" rows="3" placeholder="https://example.com/login?token=eyJ...&amp;redirect=http%3A%2F%2Fevil.com"></textarea>
-    <button id="url_run" class="btn-primary">Analyzovat URL</button>
-    <div id="url_risks" class="wb-alerts"></div>
-    <pre id="url_result" class="json-out"></pre>
-  </section>
-</div>
-
-<!-- TAB: CHECKSUM LAB -->
-<div class="wb-panel" id="tab-checksum">
-  <section class="wb-card wb-card-full">
-    <h2>&#10003; Checksum Lab</h2>
-    <p class="hint">MD5, SHA1, SHA256, CRC32, Luhn (IMEI/kreditni karta), EAN checksum, GTIN-14, ISBN-13.</p>
-    <div class="wb-row">
-      <input id="chk_raw" placeholder="8595067600011" style="flex:1">
-      <select id="chk_mode" style="width:120px">
-        <option value="auto">Auto</option>
-        <option value="luhn">Luhn</option>
-        <option value="ean">EAN</option>
-        <option value="gtin14">GTIN-14</option>
-        <option value="isbn">ISBN</option>
-      </select>
-      <button id="chk_run" class="btn-primary">Vypocitat</button>
-    </div>
-    <div id="chk_summary" style="display:none;margin:.5rem 0"></div>
-    <pre id="chk_result" class="json-out"></pre>
-  </section>
-</div>
-
 {% endblock %}
-
-{% block extra_scripts %}
-<script>
-(function(){
-  // Tab switching
-  document.querySelectorAll('.wb-tab').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      var tab = btn.getAttribute('data-tab');
-      document.querySelectorAll('.wb-tab').forEach(function(b){ b.classList.remove('active'); });
-      document.querySelectorAll('.wb-panel').forEach(function(p){ p.classList.remove('active'); });
-      btn.classList.add('active');
-      var panel = document.getElementById('tab-'+tab);
-      if(panel) panel.classList.add('active');
-      if (window.location.pathname === '/workbench') {
-        history.replaceState(null, '', '#tab-' + tab);
-      }
-    });
-  });
-
-  function $$(id){ return document.getElementById(id); }
-  function getVal(id){ var e=$$( id); return e ? e.value.trim() : ''; }
-
-  async function postJSON(url, data){
-    try{
-      var r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
-      return await r.json();
-    }catch(e){ return {ok:false,error:String(e)}; }
-  }
-
-  function showJSON(id, data){ var e=$$(id); if(e) e.textContent=JSON.stringify(data,null,2); }
-
-  function showAlerts(id, items, labelKey, severityKey){
-    var el=$$(id); if(!el) return; el.innerHTML='';
-    (items||[]).forEach(function(item){
-      var d=document.createElement('div');
-      d.className='wb-alert '+(item[severityKey||'zavaznost']||'stredni');
-      d.textContent=(item[labelKey||'zprava']||JSON.stringify(item));
-      el.appendChild(d);
-    });
-  }
-
-  // ── INGEST & ANALÝZA ────────────────────────────────────────────────────────
-  $$('wb_ingest').addEventListener('click', async function(){
-    var raw=getVal('wb_raw'); if(!raw){showJSON('wb_analysis',{error:'Vloz payload'}); return;}
-    $$('wb_analysis').textContent='Analyzu ji...';
-    var res=await postJSON('/api/v1/workbench/ingest',{raw:raw});
-    showJSON('wb_analysis',res);
-    var badge=$$('wb_type_badge');
-    if(badge && res.identifier){badge.textContent='Typ: '+res.identifier.type; badge.style.display='inline-block';}
-  });
-
-  $$('wb_run_analysis').addEventListener('click', async function(){
-    var raw=getVal('wb_raw'); if(!raw){showJSON('wb_analysis',{error:'Vloz payload'}); return;}
-    $$('wb_analysis').textContent='Pipeline...';
-    var ing=await postJSON('/api/v1/workbench/ingest',{raw:raw});
-    var res=await postJSON('/api/v1/workbench/analyze',{identifier:ing.identifier||{raw:raw}});
-    showJSON('wb_analysis',res);
-    var risk=$$('wb_risk');
-    if(risk && res.analysis){
-      var s=res.analysis.risk_score||0;
-      risk.style.display='block';
-      risk.textContent='Risk: '+s+(res.analysis.notes&&res.analysis.notes.length?' — '+res.analysis.notes.join(' | '):'');
-      risk.style.background=s>=25?'#5d1f1f':s>=10?'#4a3f00':'#1f3d1f';
-      risk.style.color=s>=25?'#ff6b6b':s>=10?'#ffd54f':'#69f0ae';
-    }
-  });
-
-  $$('wb_run_reverse').addEventListener('click', async function(){
-    var raw=getVal('wb_raw'); if(!raw){showJSON('wb_reverse',{error:'Vloz payload'}); return;}
-    $$('wb_reverse').textContent='RE analyza...';
-    var res=await postJSON('/api/v1/workbench/reverse',{raw:raw});
-    showJSON('wb_reverse',res);
-  });
-
-  $$('wb_run_tests').addEventListener('click', async function(){
-    var target=getVal('wb_target'); if(!target){showJSON('wb_report',{error:'Vloz endpoint'}); return;}
-    var mode=$$('wb_mode').value, runs=parseInt($$('wb_runs').value||3,10);
-    $$('wb_report').textContent='Testy ('+runs+'x '+mode+')...';
-    var res=await postJSON('/api/v1/workbench/test-run',{target:target,profile:{mode:mode,runs:runs}});
-    showJSON('wb_report',res);
-  });
-
-  // ── BATCH ──────────────────────────────────────────────────────────────────
-  var _batchResults = [];
-  $$('batch_run').addEventListener('click', async function(){
-    var csv=getVal('batch_csv'), col=getVal('batch_col')||'code';
-    if(!csv){showJSON('batch_result',{error:'Vloz CSV'}); return;}
-    $$('batch_result').textContent='Zpracovavam...';
-    var res=await postJSON('/api/v1/workbench/batch',{csv:csv,column:col});
-    showJSON('batch_result',res);
-    if(res.batch && res.batch.results){
-      _batchResults=res.batch.results;
-      var s=res.batch;
-      var statsEl=$$('batch_stats');
-      if(statsEl){
-        statsEl.style.display='block';
-        var st='Celkem: '+s.total+' | Typy: '+JSON.stringify(s.stats);
-        statsEl.textContent=st;
-      }
-      var expBtn=$$('batch_export');
-      if(expBtn) expBtn.style.display='inline-block';
-    }
-  });
-
-  $$('batch_export').addEventListener('click', async function(){
-    if(!_batchResults.length) return;
-    var res=await postJSON('/api/v1/workbench/batch/export',{results:_batchResults});
-    // Fallback: create blob from JSON if CSV endpoint returns JSON
-    var csvText = typeof res === 'string' ? res : JSON.stringify(_batchResults);
-    var blob=new Blob([csvText],{type:'text/csv'});
-    var a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-    a.download='workbench_export.csv'; a.click();
-  });
-
-  // ── TIMELINE ───────────────────────────────────────────────────────────────
-  $$('tl_run').addEventListener('click', async function(){
-    var raw=getVal('tl_codes'); if(!raw){showJSON('tl_result',{error:'Vloz kody'}); return;}
-    var codes=raw.split(/[
-,]+/).map(function(c){return c.trim();}).filter(Boolean);
-    $$('tl_result').textContent='Sestavuji...';
-    var res=await postJSON('/api/v1/workbench/timeline',{codes:codes});
-    showJSON('tl_result',res);
-    var vis=$$('tl_visual'); if(!vis) return;
-    vis.innerHTML='';
-    if(res.timeline && res.timeline.events){
-      res.timeline.events.forEach(function(e){
-        var d=document.createElement('div');
-        var cls='wb-tl-item'+(e.flag==='01'?' exit':e.flag==='02'?' alarm':'');
-        d.className=cls;
-        d.innerHTML='<span style="color:#4fc3f7;font-weight:700">'+e.datum+' '+e.cas+'</span>'
-          +'<span style="color:#aaa">Karta: <b style="color:#fff">'+e.id_karty+'</b></span>'
-          +'<span style="color:#888">Brána: '+e.typ_brany+'</span>'
-          +'<span class="wb-badge" style="background:'+(e.flag==='00'?'#1a472a':e.flag==='01'?'#4a3000':'#5d0000')+'">'+e.flag_label+'</span>';
-        vis.appendChild(d);
-      });
-    }
-  });
-
-  // ── VZORY ──────────────────────────────────────────────────────────────────
-  $$('pt_run').addEventListener('click', async function(){
-    var raw=getVal('pt_codes'); if(!raw){showJSON('pt_result',{error:'Vloz kody'}); return;}
-    var codes=raw.split(/[
-,]+/).map(function(c){return c.trim();}).filter(Boolean);
-    var res=await postJSON('/api/v1/workbench/patterns',{codes:codes});
-    showJSON('pt_result',res);
-    if(res.patterns && res.patterns.patterns){
-      showAlerts('pt_alerts', res.patterns.patterns, 'zprava', 'zavaznost');
-    }
-  });
-
-  // ── GS1 ────────────────────────────────────────────────────────────────────
-  $$('gs1_run').addEventListener('click', async function(){
-    var raw=getVal('gs1_raw'); if(!raw){showJSON('gs1_result',{error:'Vloz kod'}); return;}
-    var res=await postJSON('/api/v1/workbench/gs1',{raw:raw});
-    showJSON('gs1_result',res);
-  });
-
-  // ── RFID ───────────────────────────────────────────────────────────────────
-  $$('rfid_run').addEventListener('click', async function(){
-    var raw=getVal('rfid_raw'); if(!raw){showJSON('rfid_result',{error:'Vloz HEX dump'}); return;}
-    var res=await postJSON('/api/v1/workbench/rfid',{raw:raw});
-    showJSON('rfid_result',res);
-  });
-
-  // ── ENTROPIE ────────────────────────────────────────────────────────────────
-  $$('ent_run').addEventListener('click', async function(){
-    var raw=getVal('ent_raw'); if(!raw){showJSON('ent_result',{error:'Vloz retezec'}); return;}
-    var res=await postJSON('/api/v1/workbench/entropy',{raw:raw});
-    showJSON('ent_result',res);
-    if(res.entropy){
-      var e=res.entropy, meter=$$('ent_meter'), bar=$$('ent_bar'), verd=$$('ent_verdict');
-      if(meter) meter.style.display='block';
-      if(bar){
-        var pct=Math.min(100,Math.round(e.ratio*100));
-        bar.style.width=pct+'%';
-        bar.style.background=pct>85?'#ff6b6b':pct>60?'#ffd54f':'#69f0ae';
-      }
-      if(verd) verd.textContent=e.verdict+' ('+pct+'% max entropie)';
-    }
-  });
-
-  // ── JWT ────────────────────────────────────────────────────────────────────
-  $$('jwt_run').addEventListener('click', async function(){
-    var raw=getVal('jwt_raw'); if(!raw){showJSON('jwt_result',{error:'Vloz JWT'}); return;}
-    var res=await postJSON('/api/v1/workbench/jwt',{raw:raw});
-    showJSON('jwt_result',res);
-    if(res.jwt && res.jwt.warnings){
-      var warns=res.jwt.warnings.map(function(w){return {zprava:w,zavaznost:'vysoka'};});
-      showAlerts('jwt_warnings',warns,'zprava','zavaznost');
-    }
-  });
-
-  // ── CREDENTIALS ────────────────────────────────────────────────────────────
-  $$('creds_run').addEventListener('click', async function(){
-    var text=getVal('creds_text'); if(!text){showJSON('creds_result',{error:'Vloz text'}); return;}
-    var res=await postJSON('/api/v1/workbench/credentials',{text:text});
-    showJSON('creds_result',res);
-    if(res.scan){
-      var s=res.scan, el=$$('creds_summary');
-      if(el){
-        el.style.display='block';
-        el.innerHTML='Nalezeno: <b style="color:#ff6b6b">'+s.celkem_nalez+'</b> | Kritická: <b style="color:#ff6b6b">'+s.kritickych+'</b> | Vysoká: <b style="color:#ffb74d">'+s.vysokych+'</b>';
-      }
-      if(s.findings) showAlerts('creds_result',[],null,null);
-    }
-  });
-
-  // ── POROVNÁNÍ ──────────────────────────────────────────────────────────────
-  $$('cmp_run').addEventListener('click', async function(){
-    var a=getVal('cmp_a'), b=getVal('cmp_b');
-    if(!a||!b){showJSON('cmp_result',{error:'Vloz oba identifikatory'}); return;}
-    var res=await postJSON('/api/v1/workbench/compare',{a:a,b:b});
-    showJSON('cmp_result',res);
-    var diff=$$('cmp_diff'); if(!diff) return; diff.innerHTML='';
-    if(res.comparison && res.comparison.pole_diff){
-      Object.keys(res.comparison.pole_diff).forEach(function(k){
-        var entry=res.comparison.pole_diff[k];
-        var d=document.createElement('div');
-        d.className='wb-diff-row '+(entry.shoda?'same':'diff');
-        d.innerHTML='<span style="color:#888;width:120px;flex-shrink:0">'+k+'</span>'
-          +'<span style="color:#aaa">A: <b>'+entry.a+'</b></span>'
-          +'<span style="color:#aaa">B: <b>'+entry.b+'</b></span>'
-          +(entry.shoda?'<span style="color:#69f0ae">✓</span>':'<span style="color:#ff6b6b">≠</span>');
-        diff.appendChild(d);
-      });
-    }
-  });
-
-
-  // ── HEX DUMP ────────────────────────────────────────────────────────────────
-  document.getElementById('hex_run').addEventListener('click', async function(){
-    var raw = document.getElementById('hex_raw').value.trim();
-    if(!raw){ document.getElementById('hex_result').textContent='Vloz HEX'; return; }
-    document.getElementById('hex_result').textContent = 'Analyzuji...';
-    var res = await postJSON('/api/v1/workbench/hex', {raw: raw});
-    showJSON('hex_result', res);
-    if(res.hex && res.hex.ok){
-      var h = res.hex;
-      var sig = document.getElementById('hex_sig');
-      if(sig){ sig.style.display = h.signature ? 'block' : 'none'; sig.textContent = 'Format: ' + (h.signature || ''); }
-      var ent = document.getElementById('hex_entropy');
-      if(ent){ ent.style.display='block'; ent.textContent = 'Entropie: ' + h.entropy + ' bps (' + h.entropy_verdict + ') | Velikost: ' + h.length_bytes + ' B'; }
-      var wrap = document.getElementById('hex_table_wrap');
-      var tbody = document.getElementById('hex_tbody');
-      if(wrap && tbody && h.lines){
-        tbody.innerHTML = '';
-        h.lines.forEach(function(l){
-          var tr = document.createElement('tr');
-          tr.innerHTML = '<td style="color:#666;padding:.15rem .5rem">' + l.offset + '</td>'
-            + '<td style="color:#4fc3f7;padding:.15rem .5rem;letter-spacing:.05em">' + l.hex + '</td>'
-            + '<td style="color:#aaa;padding:.15rem .5rem">' + l.ascii + '</td>';
-          tbody.appendChild(tr);
-        });
-        wrap.style.display = 'block';
-      }
-    }
-  });
-
-  // ── URL DEKODER ──────────────────────────────────────────────────────────────
-  document.getElementById('url_run').addEventListener('click', async function(){
-    var raw = document.getElementById('url_raw').value.trim();
-    if(!raw){ showJSON('url_result', {error:'Vloz URL'}); return; }
-    var res = await postJSON('/api/v1/workbench/url', {raw: raw});
-    showJSON('url_result', res);
-    if(res.url && res.url.risks){
-      var risks = res.url.risks.map(function(r){ return {zprava: r, zavaznost: 'vysoka'}; });
-      showAlerts('url_risks', risks, 'zprava', 'zavaznost');
-    }
-  });
-
-  // ── CHECKSUM LAB ─────────────────────────────────────────────────────────────
-  document.getElementById('chk_run').addEventListener('click', async function(){
-    var raw = document.getElementById('chk_raw').value.trim();
-    var mode = document.getElementById('chk_mode').value;
-    if(!raw){ showJSON('chk_result', {error:'Vloz hodnotu'}); return; }
-    var res = await postJSON('/api/v1/workbench/checksum', {raw: raw, mode: mode});
-    showJSON('chk_result', res);
-    if(res.checksum){
-      var c = res.checksum.checksums;
-      var summary = document.getElementById('chk_summary');
-      if(summary){
-        var parts = [];
-        if(c.ean) parts.push('EAN: ' + (c.ean.valid ? '<span style="color:#69f0ae">VALID</span>' : '<span style="color:#ff6b6b">INVALID (ocekavano: '+c.ean.computed_check+')</span>'));
-        if(c.luhn) parts.push('Luhn: ' + (c.luhn.valid ? '<span style="color:#69f0ae">VALID</span>' : '<span style="color:#ff6b6b">INVALID</span>'));
-        if(c.gtin14) parts.push('GTIN-14: ' + (c.gtin14.valid ? '<span style="color:#69f0ae">VALID</span>' : '<span style="color:#ff6b6b">INVALID</span>'));
-        if(parts.length){
-          summary.style.display = 'block';
-          summary.innerHTML = '<div style="background:#0d0d0d;border:1px solid #222;border-radius:6px;padding:.5rem .75rem;font-size:.8rem">' + parts.join(' &nbsp;|&nbsp; ') + '</div>';
-        }
-      }
-    }
-  });
-
-})();
-</script>
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/workbench.js') }}"></script>
 {% endblock %}
