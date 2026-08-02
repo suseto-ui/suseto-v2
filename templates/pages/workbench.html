@@ -296,6 +296,9 @@ label{font-size:.78rem;color:#888}
       btn.classList.add('active');
       var panel = document.getElementById('tab-'+tab);
       if(panel) panel.classList.add('active');
+      if (window.location.pathname === '/workbench') {
+        history.replaceState(null, '', '#tab-' + tab);
+      }
     });
   });
 
