@@ -1,18 +1,34 @@
-import base64, re, zlib, json, string, random, time
-from urllib.parse import urlparse, parse_qs
-from collections import Counter
-import math
+# services/workbench_service.py
+# Data & Identifier Analysis Workbench — backend service
 
-# ── Identifier model ──────────────────────────────────────────────────────────
+import base64
+import zlib
+import re
+import time
+import random
+import string
+from dataclasses import dataclass, field
+from typing import Dict, Any, List
+from urllib.parse import urlparse, parse_qs, unquote
+
+try:
+    import requests as _requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
+
+
+# ── Datový model ──────────────────────────────────────────────────────────────
+
+@dataclass
 class Identifier:
-    def __init__(self, raw, id_type="unknown", normalized="", attributes=None, warnings=None):
-        self.raw = raw
-        self.type = id_type
-        self.normalized = normalized or raw
-        self.attributes = attributes or {}
-        self.warnings = warnings or []
+    raw: str
+    type: str
+    normalized: str
+    attributes: Dict[str, Any] = field(default_factory=dict)
+    warnings: List[str] = field(default_factory=list)
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "raw": self.raw,
             "type": self.type,
@@ -21,102 +37,251 @@ class Identifier:
             "warnings": self.warnings,
         }
 
-# ── Classification ─────────────────────────────────────────────────────────────
-def classify(raw: str) -> str:
-    t = (raw or "").strip()
-    if not t:
-        return "empty"
-    if t.startswith("http://") or t.startswith("https://"):
-        return "url"
-    if t.startswith("WIFI:"):
-        return "wifi-qr"
-    if t.startswith("{") and t.endswith("}"):
-        try: json.loads(t); return "json"
-        except: pass
-    if t.count(".") == 2:
-        return "jwt-like"
-    compact = re.sub(r"\s+", "", t)
-    if compact and all(c in "0123456789abcdefABCDEF" for c in compact) and len(compact) >= 8 and len(compact) % 2 == 0:
-        return "hex"
+
+# ── ACCESS GATE parser ────────────────────────────────────────────────────────
+
+def parse_access_gate(raw: str) -> Dict[str, Any]:
+    """
+    Formát vstupní brány (26 číslic):
+    MM YY DD HH MM SS FL TY PADD(4) ID(6)
+    Pozice: 0-1 měsíc, 2-3 rok(20xx), 4-5 den,
+            6-7 hodiny, 8-9 minuty, 10-11 sekundy,
+            12-13 flag, 14-15 typ brány, 16-19 padding, 20-25 ID karty
+    """
+    s = raw.strip()
+    if len(s) != 26 or not s.isdigit():
+        return {}
     try:
-        dec = base64.b64decode(t + "===")
-        if len(t) >= 8:
-            return "base64-like"
+        MM   = s[0:2]
+        YY   = s[2:4]
+        DD   = s[4:6]
+        HH   = s[6:8]
+        mi   = s[8:10]
+        SS   = s[10:12]
+        FL   = s[12:14]
+        TY   = s[14:16]
+        PADD = s[16:20]
+        ID   = s[20:26]
+
+        # validace
+        if not (1 <= int(MM) <= 12): return {}
+        if not (1 <= int(DD) <= 31): return {}
+        if not (0 <= int(HH) <= 23): return {}
+        if not (0 <= int(mi) <= 59): return {}
+        if not (0 <= int(SS) <= 59): return {}
+
+        flag_map = {"00": "vstup", "01": "výstup", "02": "alarm", "03": "odmítnut"}
+        flag_label = flag_map.get(FL, f"neznámý ({FL})")
+
+        return {
+            "datum": f"{DD}.{MM}.20{YY}",
+            "cas": f"{HH}:{mi}:{SS}",
+            "datetime_iso": f"20{YY}-{MM}-{DD}T{HH}:{mi}:{SS}",
+            "mesic": int(MM),
+            "rok": int("20" + YY),
+            "den": int(DD),
+            "hodiny": int(HH),
+            "minuty": int(mi),
+            "sekundy": int(SS),
+            "flag": FL,
+            "flag_label": flag_label,
+            "typ_brany": TY,
+            "padding": PADD,
+            "id_karty": ID,
+            "id_karty_int": int(ID),
+        }
+    except Exception:
+        return {}
+
+
+# ── Klasifikace ───────────────────────────────────────────────────────────────
+
+def classify_identifier(raw: str) -> str:
+    s = raw.strip()
+
+    # Access gate: přesně 26 číslic + validní datum/čas
+    if len(s) == 26 and s.isdigit():
+        ag = parse_access_gate(s)
+        if ag:
+            return "access_gate"
+
+    if s.startswith(("http://", "https://")):
+        return "url"
+    if s.startswith("{") or s.startswith("["):
+        try:
+            import json
+            json.loads(s)
+            return "json"
+        except Exception:
+            pass
+    # JWT: xxx.yyy.zzz base64url
+    if re.match(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$", s):
+        return "jwt"
+    # MAC adresa
+    if re.match(r"^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$", s):
+        return "mac"
+    # IMEI: 15 číslic
+    if re.match(r"^\d{15}$", s):
+        return "imei"
+    # EAN-13 / GTIN: 13 číslic
+    if re.match(r"^\d{13}$", s):
+        return "ean13"
+    # EAN-8
+    if re.match(r"^\d{8}$", s):
+        return "ean8"
+    # UPC-A: 12 číslic
+    if re.match(r"^\d{12}$", s):
+        return "upc_a"
+    # HEX string
+    if re.match(r"^[0-9A-Fa-f]+$", s) and len(s) % 2 == 0 and len(s) >= 8:
+        return "hex"
+    # Base64
+    try:
+        if re.match(r"^[A-Za-z0-9+/]+=*$", s) and len(s) % 4 == 0 and len(s) >= 8:
+            base64.b64decode(s)
+            return "base64"
     except Exception:
         pass
-    if re.fullmatch(r"([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", t):
-        return "mac"
-    if t.isdigit() and len(t) in (8, 12, 13, 14):
-        return "numeric-gtin"
+    # UUID / GUID
+    if re.match(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$", s):
+        return "uuid"
     return "unknown"
 
 
-def normalize(raw: str, id_type: str) -> str:
-    t = (raw or "").strip()
-    if id_type == "hex":
-        return re.sub(r"\s+", "", t).lower()
+def normalize_identifier(raw: str, id_type: str) -> str:
+    if id_type == "url":
+        return raw.strip()
+    if id_type in ("hex",):
+        return raw.strip().lower()
     if id_type == "mac":
-        return t.lower()
-    return t
+        return raw.upper().replace("-", ":")
+    return raw.strip()
 
 
-def enrich(identifier: Identifier) -> None:
+# ── Enrich attributes ─────────────────────────────────────────────────────────
+
+def enrich_attributes(identifier: Identifier) -> None:
     t = identifier.type
-    n = identifier.normalized
-    if t == "url":
-        p = urlparse(n)
-        identifier.attributes.update({
-            "scheme": p.scheme, "host": p.netloc,
-            "path": p.path, "params": parse_qs(p.query),
-        })
-        if any(x in p.path.lower() for x in ("login","admin","auth","reset","password")):
-            identifier.warnings.append("URL vypadá jako citlivý endpoint.")
-    elif t == "json":
-        try:
-            obj = json.loads(n)
-            identifier.attributes["keys"] = list(obj.keys())[:20] if isinstance(obj, dict) else []
-            identifier.attributes["json_type"] = type(obj).__name__
-        except Exception as ex:
-            identifier.warnings.append(f"JSON parse chyba: {ex}")
+    raw = identifier.normalized
+
+    if t == "access_gate":
+        ag = parse_access_gate(raw)
+        identifier.attributes.update(ag)
+
+    elif t == "url":
+        u = urlparse(raw)
+        identifier.attributes["host"] = u.netloc
+        identifier.attributes["path"] = u.path
+        identifier.attributes["params"] = parse_qs(u.query)
+        identifier.attributes["scheme"] = u.scheme
+
     elif t == "hex":
-        identifier.attributes["length_bytes"] = len(n) // 2
+        identifier.attributes["length_bytes"] = len(raw) // 2
+        identifier.attributes["hex_upper"] = raw.upper()
+
+    elif t == "base64":
         try:
-            identifier.attributes["ascii_preview"] = bytes.fromhex(n).decode("utf-8","replace")[:120]
-        except Exception as ex:
-            identifier.warnings.append(f"HEX decode chyba: {ex}")
-    elif t == "base64-like":
+            decoded = base64.b64decode(raw + "===")
+            identifier.attributes["decoded_hex"] = decoded.hex()
+            identifier.attributes["decoded_len"] = len(decoded)
+            try:
+                identifier.attributes["decoded_utf8"] = decoded.decode("utf-8")
+            except Exception:
+                pass
+        except Exception:
+            identifier.warnings.append("base64 decode failed")
+
+    elif t == "jwt":
+        parts = raw.split(".")
         try:
-            dec = base64.b64decode(n + "===")
-            identifier.attributes["decoded_len"] = len(dec)
-            identifier.attributes["decoded_preview"] = dec[:80].decode("utf-8","replace")
-        except Exception as ex:
-            identifier.warnings.append(f"Base64 decode chyba: {ex}")
-    elif t == "numeric-gtin":
-        identifier.attributes["length"] = len(n)
-        identifier.attributes["gtin_type"] = {8:"GTIN-8",12:"GTIN-12",13:"GTIN-13",14:"GTIN-14"}.get(len(n),"unknown")
+            def b64pad(s):
+                return s + "=" * (-len(s) % 4)
+            import json as _json
+            header = _json.loads(base64.urlsafe_b64decode(b64pad(parts[0])))
+            payload = _json.loads(base64.urlsafe_b64decode(b64pad(parts[1])))
+            identifier.attributes["header"] = header
+            identifier.attributes["payload"] = payload
+        except Exception as e:
+            identifier.warnings.append(f"JWT decode partial: {e}")
+
+    elif t == "ean13":
+        identifier.attributes["check_digit"] = raw[-1]
+        identifier.attributes["company_prefix"] = raw[:7]
+        identifier.attributes["gs1_prefix"] = raw[:3]
+
+    elif t == "imei":
+        identifier.attributes["tac"] = raw[:8]
+        identifier.attributes["serial"] = raw[8:14]
+        identifier.attributes["check"] = raw[14]
+
+    elif t == "mac":
+        parts = raw.upper().replace("-", ":").split(":")
+        identifier.attributes["oui"] = ":".join(parts[:3])
+        identifier.attributes["nic"] = ":".join(parts[3:])
+
+
+# ── Ingest ────────────────────────────────────────────────────────────────────
+
+def ingest_identifier(raw: str, meta: Dict[str, Any] = None) -> Identifier:
+    id_type = classify_identifier(raw)
+    normalized = normalize_identifier(raw, id_type)
+    identifier = Identifier(
+        raw=raw,
+        type=id_type,
+        normalized=normalized,
+        attributes=dict(meta or {}),
+        warnings=[]
+    )
+    enrich_attributes(identifier)
+    return identifier
 
 
 # ── Analysis pipeline ─────────────────────────────────────────────────────────
-def run_analysis_pipeline(identifier_data: dict) -> dict:
+
+def run_analysis_pipeline(identifier_data: Dict[str, Any]) -> Dict[str, Any]:
     identifier = Identifier(
         raw=identifier_data.get("raw", ""),
-        id_type=identifier_data.get("type", "unknown"),
-        normalized=identifier_data.get("normalized", ""),
-        attributes=identifier_data.get("attributes", {}),
-        warnings=identifier_data.get("warnings", []),
+        type=identifier_data.get("type", "unknown"),
+        normalized=identifier_data.get("normalized", identifier_data.get("raw", "")),
+        attributes=dict(identifier_data.get("attributes", {})),
+        warnings=list(identifier_data.get("warnings", [])),
     )
+
     if identifier.type in ("unknown", ""):
-        identifier.type = classify(identifier.raw)
-    identifier.normalized = normalize(identifier.raw, identifier.type)
-    enrich(identifier)
+        identifier.type = classify_identifier(identifier.raw)
+        identifier.normalized = normalize_identifier(identifier.raw, identifier.type)
+        enrich_attributes(identifier)
+
     risk_score = 0
     notes = []
-    if identifier.warnings:
-        risk_score += 25
-        notes.extend(identifier.warnings)
-    if identifier.type in ("base64-like","hex","jwt-like"):
-        risk_score += 10
-        notes.append("Payload doporučen k reverzní analýze.")
+
+    if identifier.type == "access_gate":
+        ag = identifier.attributes
+        notes.append(f"Průchod branou: {ag.get('datum','')} {ag.get('cas','')}")
+        notes.append(f"ID karty: {ag.get('id_karty','')} | Typ brány: {ag.get('typ_brany','')}")
+        notes.append(f"Status: {ag.get('flag_label','')}")
+        if ag.get("flag") not in ("00", "01"):
+            risk_score += 30
+            notes.append("Nestandardní flag průchodu!")
+
+    elif identifier.type == "url":
+        host = identifier.attributes.get("host", "")
+        path = identifier.attributes.get("path", "")
+        if "login" in path or "auth" in path or "token" in path:
+            risk_score += 20
+            notes.append("URL obsahuje autentizační cestu.")
+        if not identifier.normalized.startswith("https://"):
+            risk_score += 15
+            notes.append("Nezabezpečené HTTP.")
+
+    elif identifier.type == "jwt":
+        payload = identifier.attributes.get("payload", {})
+        import time as _time
+        if "exp" in payload and payload["exp"] < _time.time():
+            risk_score += 25
+            notes.append("JWT token vypršel.")
+        notes.append(f"Algoritmus: {identifier.attributes.get('header', {}).get('alg', '?')}")
+
     return {
         "identifier": identifier.to_dict(),
         "risk_score": risk_score,
@@ -124,90 +289,132 @@ def run_analysis_pipeline(identifier_data: dict) -> dict:
     }
 
 
-def ingest_identifier(raw: str, meta: dict = None) -> Identifier:
-    id_type = classify(raw)
-    return Identifier(raw=raw, id_type=id_type, normalized=normalize(raw, id_type), attributes=meta or {})
+# ── Reverse engineering ───────────────────────────────────────────────────────
 
+def run_reverse_engineering(raw: str) -> Dict[str, Any]:
+    results = []
+    s = raw.strip()
 
-# ── Reverse engineering engine ─────────────────────────────────────────────────
-def _ascii_ratio(s):
-    if not s: return 0
-    good = sum(1 for ch in s if 32 <= ord(ch) < 127 or ch in "\n\r\t")
-    return round(good / len(s), 4)
+    # Access gate detekce
+    if len(s) == 26 and s.isdigit():
+        ag = parse_access_gate(s)
+        if ag:
+            results.append({
+                "metoda": "access_gate_parser",
+                "ok": True,
+                "typ": "Kód vstupní brány",
+                "vysledek": ag
+            })
 
-def _entropy(s):
-    if not s: return 0.0
-    n = len(s); c = Counter(s)
-    return round(-sum((v/n)*math.log2(v/n) for v in c.values()), 4)
-
-def run_reverse_engineering(raw: str) -> dict:
-    candidates = []
-    # raw
-    candidates.append({"kind":"raw","ok":True,"preview":raw[:120],"entropy":_entropy(raw),"ascii_ratio":_ascii_ratio(raw)})
-    # base64
+    # Base64 pokus
     try:
-        dec = base64.b64decode(raw + "===")
-        preview = dec[:120].decode("utf-8","replace")
-        candidates.append({"kind":"base64","ok":True,"decoded_hex":dec.hex()[:80],"preview":preview,"entropy":_entropy(preview),"ascii_ratio":_ascii_ratio(preview)})
-        # zlib after base64
+        decoded = base64.b64decode(s + "===")
+        results.append({"metoda": "base64", "ok": True, "decoded_hex": decoded.hex(),
+                        "decoded_utf8": decoded.decode("utf-8", errors="replace")})
+        # zlib na base64 výstupu
         try:
-            z = zlib.decompress(dec)
-            zp = z[:120].decode("utf-8","replace")
-            candidates.append({"kind":"base64+zlib","ok":True,"preview":zp,"entropy":_entropy(zp),"ascii_ratio":_ascii_ratio(zp)})
-        except: pass
-    except: candidates.append({"kind":"base64","ok":False,"error":"Not valid base64"})
-    # hex
-    compact = re.sub(r"\s+","",raw)
-    if all(c in "0123456789abcdefABCDEF" for c in compact) and len(compact) % 2 == 0:
+            decompressed = zlib.decompress(decoded)
+            results.append({"metoda": "base64+zlib", "ok": True,
+                            "decoded": decompressed.decode("utf-8", errors="replace")})
+        except Exception:
+            pass
+    except Exception:
+        results.append({"metoda": "base64", "ok": False})
+
+    # HEX pokus
+    if re.match(r"^[0-9A-Fa-f]+$", s) and len(s) % 2 == 0:
+        raw_bytes = bytes.fromhex(s)
+        results.append({"metoda": "hex_decode", "ok": True,
+                        "decoded_utf8": raw_bytes.decode("utf-8", errors="replace"),
+                        "length_bytes": len(raw_bytes)})
         try:
-            dec = bytes.fromhex(compact)
-            preview = dec[:120].decode("utf-8","replace")
-            candidates.append({"kind":"hex","ok":True,"preview":preview,"length_bytes":len(dec),"entropy":_entropy(preview),"ascii_ratio":_ascii_ratio(preview)})
-            # zlib after hex
-            try:
-                z = zlib.decompress(dec)
-                zp = z[:120].decode("utf-8","replace")
-                candidates.append({"kind":"hex+zlib","ok":True,"preview":zp,"entropy":_entropy(zp),"ascii_ratio":_ascii_ratio(zp)})
-            except: pass
-        except: candidates.append({"kind":"hex","ok":False,"error":"Not valid hex"})
-    # URL-decode
-    from urllib.parse import unquote_plus
-    if "%" in raw or "+" in raw:
-        ud = unquote_plus(raw)
-        candidates.append({"kind":"url-decode","ok":True,"preview":ud[:120],"entropy":_entropy(ud),"ascii_ratio":_ascii_ratio(ud)})
-    candidates.sort(key=lambda x: x.get("ascii_ratio",0) if x.get("ok") else -1, reverse=True)
-    return {"input": raw, "candidates": candidates, "best": next((c for c in candidates if c.get("ok") and c.get("kind") != "raw"), candidates[0] if candidates else None)}
+            decompressed = zlib.decompress(raw_bytes)
+            results.append({"metoda": "hex+zlib", "ok": True,
+                            "decoded": decompressed.decode("utf-8", errors="replace")})
+        except Exception:
+            pass
+
+    # URL decode
+    try:
+        decoded_url = unquote(s)
+        if decoded_url != s:
+            results.append({"metoda": "url_decode", "ok": True, "decoded": decoded_url})
+    except Exception:
+        pass
+
+    # JWT
+    if re.match(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$", s):
+        parts = s.split(".")
+        try:
+            import json as _json
+            def b64pad(x): return x + "=" * (-len(x) % 4)
+            header = _json.loads(base64.urlsafe_b64decode(b64pad(parts[0])))
+            payload = _json.loads(base64.urlsafe_b64decode(b64pad(parts[1])))
+            results.append({"metoda": "jwt_decode", "ok": True,
+                            "header": header, "payload": payload})
+        except Exception as e:
+            results.append({"metoda": "jwt_decode", "ok": False, "error": str(e)})
+
+    return {"input": raw, "candidates": results}
 
 
-# ── Test harness / fuzzer ─────────────────────────────────────────────────────
-def generate_test_payload(mode: str) -> str:
+# ── Test harness ──────────────────────────────────────────────────────────────
+
+def _gen_payload(mode: str) -> str:
     if mode == "url":
-        token = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(16))
-        return f"https://example.test/login?token={token}"
+        tok = "".join(random.choices(string.ascii_letters + string.digits, k=16))
+        return f"https://example.com/gate?token={tok}"
     if mode == "hex":
-        return "".join(random.choice("0123456789ABCDEF") for _ in range(32))
+        return "".join(random.choices("0123456789ABCDEF", k=32))
     if mode == "base64":
-        return base64.b64encode(os.urandom(12).replace(b"\x00",b"x")).decode()
+        data = "".join(random.choices(string.ascii_letters, k=12)).encode()
+        return base64.b64encode(data).decode()
     if mode == "gtin":
-        return str(random.randint(1000000000000, 9999999999999))
-    return "TEST-WORKBENCH-PAYLOAD"
+        return "".join(random.choices(string.digits, k=13))
+    if mode == "access_gate":
+        import datetime
+        now = datetime.datetime.now()
+        mm = f"{now.month:02d}"
+        yy = f"{now.year % 100:02d}"
+        dd = f"{now.day:02d}"
+        hh = f"{now.hour:02d}"
+        mi = f"{now.minute:02d}"
+        ss = f"{now.second:02d}"
+        card_id = f"{random.randint(1000, 99999):06d}"
+        return f"{mm}{yy}{dd}{hh}{mi}{ss}00100000{card_id}"
+    return "TEST_PAYLOAD"
 
-def run_test_harness(target: str, profile: dict) -> dict:
-    import urllib.request as ureq
-    runs = int(profile.get("runs", 3))
+
+def run_test_harness(target: str, profile: Dict[str, Any]) -> Dict[str, Any]:
+    runs = min(int(profile.get("runs", 5)), 20)
     mode = profile.get("mode", "url")
     results = []
+
     for _ in range(runs):
-        payload = generate_test_payload(mode)
-        try:
-            data = json.dumps({"raw": payload}).encode()
-            req = ureq.Request(target, data=data, headers={"Content-Type":"application/json"}, method="POST")
-            started = time.time()
-            with ureq.urlopen(req, timeout=5) as r:
-                body = r.read().decode("utf-8","replace")[:200]
-                elapsed = int((time.time() - started) * 1000)
-            results.append({"payload": payload, "status": r.status, "time_ms": elapsed, "body_sample": body})
-        except Exception as ex:
-            results.append({"payload": payload, "error": str(ex)})
-        time.sleep(0.15)
-    return {"target": target, "profile": {"mode": mode, "runs": runs}, "results": results}
+        payload = _gen_payload(mode)
+        row: Dict[str, Any] = {"payload": payload}
+        if HAS_REQUESTS:
+            try:
+                resp = _requests.post(target, json={"raw": payload}, timeout=5)
+                row["status"] = resp.status_code
+                row["time_ms"] = int(resp.elapsed.total_seconds() * 1000)
+                row["body_sample"] = resp.text[:300]
+            except Exception as e:
+                row["error"] = str(e)
+        else:
+            import urllib.request as _ur
+            import urllib.error
+            try:
+                req = _ur.Request(target, method="POST")
+                req.add_header("Content-Type", "application/json")
+                import json as _json
+                req.data = _json.dumps({"raw": payload}).encode()
+                with _ur.urlopen(req, timeout=5) as r:
+                    row["status"] = r.status
+                    row["body_sample"] = r.read(300).decode("utf-8", errors="replace")
+            except Exception as e:
+                row["error"] = str(e)
+        results.append(row)
+        time.sleep(0.1)
+
+    return {"target": target, "profile": profile, "runs": runs, "results": results}
