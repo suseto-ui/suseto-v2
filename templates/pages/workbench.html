@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+{% block title %}Data & Identifier Analysis Workbench{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Data &amp; Identifier Analysis Workbench</h1>
+  <p class="subtitle">Analyzuj, identifikuj a reverzně rozeber libovolný identifikátor.</p>
+</div>
+
+<div class="wb-grid">
+  <section class="wb-panel">
+    <h2>Ingest</h2>
+    <p class="hint">Vlož libovolný payload — QR, URL, HEX, base64, JSON, GTIN, MAC…</p>
+    <textarea id="wb_raw" rows="6" placeholder="Vlož identifikátor..."></textarea>
+    <button id="wb_ingest" class="btn-primary">Normalizovat a typovat</button>
+    <div id="wb_type_badge" class="badge" style="display:none"></div>
+  </section>
+
+  <section class="wb-panel">
+    <h2>Analysis Pipeline</h2>
+    <button id="wb_run_analysis" class="btn-secondary">Spustit analýzu</button>
+    <div id="wb_risk" class="risk-indicator" style="display:none"></div>
+    <pre id="wb_analysis" class="json-out"></pre>
+  </section>
+
+  <section class="wb-panel">
+    <h2>Reverse Engineering</h2>
+    <button id="wb_run_reverse" class="btn-secondary">Spustit RE analýzu</button>
+    <pre id="wb_reverse" class="json-out"></pre>
+  </section>
+
+  <section class="wb-panel">
+    <h2>Test Harness</h2>
+    <label>Cílový endpoint:</label>
+    <input id="wb_target" placeholder="https://suseto.pythonanywhere.com/api/v1/workbench/ingest">
+    <label>Režim:</label>
+    <select id="wb_mode">
+      <option value="url">URL fuzzing</option>
+      <option value="hex">HEX fuzzing</option>
+      <option value="base64">Base64 fuzzing</option>
+      <option value="gtin">GTIN fuzzing</option>
+    </select>
+    <label>Počet běhů:</label>
+    <input id="wb_runs" type="number" value="3" min="1" max="20" style="width:80px">
+    <button id="wb_run_tests" class="btn-warning">Spustit testy</button>
+    <pre id="wb_report" class="json-out"></pre>
+  </section>
+</div>
+
+<style>
+.wb-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1rem}
+.wb-panel{background:var(--surface,#1a1a1a);border:1px solid var(--border,#333);border-radius:8px;padding:1.25rem;display:flex;flex-direction:column;gap:.75rem}
+.wb-panel h2{font-size:1rem;font-weight:600;margin:0;color:var(--accent,#4fc3f7)}
+.json-out{background:#0d0d0d;color:#a8ff78;border-radius:6px;padding:1rem;font-size:.75rem;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-all}
+.hint{font-size:.8rem;color:#666;margin:0}
+textarea,.json-out input{width:100%}
+.badge{display:inline-block;padding:.25rem .75rem;border-radius:12px;font-size:.8rem;font-weight:600;background:#1565c0;color:#fff;width:fit-content}
+.risk-indicator{padding:.4rem .8rem;border-radius:6px;font-size:.8rem;font-weight:600}
+@media(max-width:768px){.wb-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block extra_scripts %}<script src="{{ url_for('static', filename='js/workbench.js') }}"></script>{% endblock %}
