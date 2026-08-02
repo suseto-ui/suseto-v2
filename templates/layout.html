@@ -50,7 +50,8 @@
                             href="{{ url_for('auth_lab') }}">Auth Lab</a><a href="{{ url_for('runs') }}">Runs</a><a
                             href="{{ url_for('health') }}" target="_blank" rel="noopener noreferrer">Health</a></div>
                 </details>
-            </nav>
+                <a href="/workbench"{% if request.path=="/workbench" %} class="active"{% endif %}>🔬 Workbench</a>
+</nav>
         </div>
     </header>
     <main class="shell page-shell">{% block content %}{% endblock %}</main>
