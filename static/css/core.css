@@ -23,3 +23,11 @@
 .wb-page-header{margin-bottom:1.5rem}
 .wb-page-header h1{font-size:clamp(22px,3vw,34px);font-weight:800;margin:0 0 .3rem}
 .wb-page-header .subtitle{color:#64748b;font-size:.9rem;margin:0}
+
+/* dropdown visibility fix */
+.nav-group summary{display:inline-flex;align-items:center;user-select:none}
+.nav-menu{display:none;z-index:1000}
+.nav-group[open]>.nav-menu{display:grid}
+.nav-group summary{pointer-events:auto}
+.nav-group{display:inline-block}
+.topnav{flex-wrap:wrap}
