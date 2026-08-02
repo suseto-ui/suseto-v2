@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% block title %}Data & Identifier Analysis Workbench{% endblock %}
+
 {% block content %}
 <div class="page-header">
   <h1>Data &amp; Identifier Analysis Workbench</h1>
@@ -8,28 +9,28 @@
 
 <div class="wb-grid">
   <section class="wb-panel">
-    <h2>Ingest</h2>
-    <p class="hint">Vlož libovolný payload — QR, URL, HEX, base64, JSON, GTIN, MAC…</p>
+    <h2>1. Ingest</h2>
+    <p class="hint">Vlož payload — QR, URL, HEX, base64, JSON, GTIN, MAC, JWT…</p>
     <textarea id="wb_raw" rows="6" placeholder="Vlož identifikátor..."></textarea>
     <button id="wb_ingest" class="btn-primary">Normalizovat a typovat</button>
-    <div id="wb_type_badge" class="badge" style="display:none"></div>
+    <div id="wb_type_badge" class="wb-badge" style="display:none"></div>
   </section>
 
   <section class="wb-panel">
-    <h2>Analysis Pipeline</h2>
+    <h2>2. Analysis Pipeline</h2>
     <button id="wb_run_analysis" class="btn-secondary">Spustit analýzu</button>
-    <div id="wb_risk" class="risk-indicator" style="display:none"></div>
+    <div id="wb_risk" class="wb-risk" style="display:none"></div>
     <pre id="wb_analysis" class="json-out"></pre>
   </section>
 
   <section class="wb-panel">
-    <h2>Reverse Engineering</h2>
+    <h2>3. Reverse Engineering</h2>
     <button id="wb_run_reverse" class="btn-secondary">Spustit RE analýzu</button>
     <pre id="wb_reverse" class="json-out"></pre>
   </section>
 
   <section class="wb-panel">
-    <h2>Test Harness</h2>
+    <h2>4. Test Harness</h2>
     <label>Cílový endpoint:</label>
     <input id="wb_target" placeholder="https://suseto.pythonanywhere.com/api/v1/workbench/ingest">
     <label>Režim:</label>
@@ -50,82 +51,97 @@
 .wb-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1rem}
 .wb-panel{background:var(--surface,#1a1a1a);border:1px solid var(--border,#333);border-radius:8px;padding:1.25rem;display:flex;flex-direction:column;gap:.75rem}
 .wb-panel h2{font-size:1rem;font-weight:600;margin:0;color:var(--accent,#4fc3f7)}
-.json-out{background:#0d0d0d;color:#a8ff78;border-radius:6px;padding:1rem;font-size:.75rem;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-all}
-.hint{font-size:.8rem;color:#666;margin:0}
-textarea,.json-out input{width:100%}
-.badge{display:inline-block;padding:.25rem .75rem;border-radius:12px;font-size:.8rem;font-weight:600;background:#1565c0;color:#fff;width:fit-content}
-.risk-indicator{padding:.4rem .8rem;border-radius:6px;font-size:.8rem;font-weight:600}
+.json-out{background:#0d0d0d;color:#a8ff78;border-radius:6px;padding:1rem;font-size:.75rem;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-all;min-height:40px}
+.hint{font-size:.8rem;color:#888;margin:0}
+#wb_raw,#wb_target{width:100%}
+.wb-badge{display:inline-block;padding:.25rem .75rem;border-radius:12px;font-size:.8rem;font-weight:600;background:#1565c0;color:#fff;width:fit-content}
+.wb-risk{padding:.4rem .8rem;border-radius:6px;font-size:.8rem;font-weight:600}
 @media(max-width:768px){.wb-grid{grid-template-columns:1fr}}
 </style>
 {% endblock %}
+
 {% block extra_scripts %}
 <script>
-/* workbench.js inline — fallback if static file fails */
 (function(){
-const $ = id => document.getElementById(id);
-async function postJSON(url, data) {
-  try {
-    const resp = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-    return await resp.json();
-  } catch(e) { return {ok:false, error: String(e)}; }
-}
-function showJSON(el, data) {
-  if (el) el.textContent = JSON.stringify(data, null, 2);
-}
-document.addEventListener('DOMContentLoaded', function() {
-  const rawEl = $('wb_raw');
-  const analysisEl = $('wb_analysis');
-  const reverseEl = $('wb_reverse');
-  const reportEl = $('wb_report');
+  function $$(id){ return document.getElementById(id); }
 
-  $('wb_ingest')?.addEventListener('click', async () => {
-    const raw = (rawEl?.value || '').trim();
-    if (!raw) { showJSON(analysisEl, {error:'Vlož payload do textového pole.'}); return; }
-    analysisEl.textContent = 'Analyzuji...';
-    const res = await postJSON('/api/v1/workbench/ingest', {raw});
-    showJSON(analysisEl, res);
-    const badge = $('wb_type_badge');
-    if (badge && res.identifier) {
-      badge.textContent = '🔍 ' + res.identifier.type;
-      badge.style.display = 'inline-block';
+  async function postJSON(url, data){
+    try {
+      var resp = await fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+      });
+      return await resp.json();
+    } catch(e) {
+      return {ok: false, error: String(e)};
     }
-  });
+  }
 
-  $('wb_run_analysis')?.addEventListener('click', async () => {
-    const raw = (rawEl?.value || '').trim();
-    if (!raw) { showJSON(analysisEl, {error:'Vlož payload.'}); return; }
-    analysisEl.textContent = 'Analyzuji pipeline...';
-    const ingest = await postJSON('/api/v1/workbench/ingest', {raw});
-    const res = await postJSON('/api/v1/workbench/analyze', {identifier: ingest.identifier || {raw}});
-    showJSON(analysisEl, res);
-    const risk = $('wb_risk');
-    if (risk && res.analysis) {
-      const score = res.analysis.risk_score || 0;
-      risk.style.display = 'block';
-      risk.textContent = 'Risk score: ' + score + (res.analysis.notes?.length ? ' — ' + res.analysis.notes.join(', ') : '');
-      risk.style.background = score >= 25 ? '#5d1f1f' : score >= 10 ? '#4a3f00' : '#1f3d1f';
-      risk.style.color = score >= 25 ? '#ff6b6b' : score >= 10 ? '#ffd54f' : '#69f0ae';
-    }
-  });
+  function showJSON(id, data){
+    var el = $$(id);
+    if (el) el.textContent = JSON.stringify(data, null, 2);
+  }
 
-  $('wb_run_reverse')?.addEventListener('click', async () => {
-    const raw = (rawEl?.value || '').trim();
-    if (!raw) { showJSON(reverseEl, {error:'Vlož payload.'}); return; }
-    reverseEl.textContent = 'RE analýza...';
-    const res = await postJSON('/api/v1/workbench/reverse', {raw});
-    showJSON(reverseEl, res);
-  });
+  var wb_ingest = $$('wb_ingest');
+  if (wb_ingest) {
+    wb_ingest.addEventListener('click', async function(){
+      var raw = ($$('wb_raw') ? $$('wb_raw').value : '').trim();
+      if (!raw) { showJSON('wb_analysis', {error: 'Vloz payload.'}); return; }
+      $$('wb_analysis').textContent = 'Analyzuji...';
+      var res = await postJSON('/api/v1/workbench/ingest', {raw: raw});
+      showJSON('wb_analysis', res);
+      var badge = $$('wb_type_badge');
+      if (badge && res.identifier) {
+        badge.textContent = 'Typ: ' + res.identifier.type;
+        badge.style.display = 'inline-block';
+      }
+    });
+  }
 
-  $('wb_run_tests')?.addEventListener('click', async () => {
-    const target = ($('wb_target')?.value || '').trim();
-    const mode = $('wb_mode')?.value || 'url';
-    const runs = parseInt($('wb_runs')?.value || '3', 10);
-    if (!target) { showJSON(reportEl, {error:'Vlož cílový endpoint.'}); return; }
-    reportEl.textContent = 'Probíhají testy (' + runs + 'x ' + mode + ')...';
-    const res = await postJSON('/api/v1/workbench/test-run', {target, profile:{mode,runs}});
-    showJSON(reportEl, res);
-  });
-});
+  var wb_run_analysis = $$('wb_run_analysis');
+  if (wb_run_analysis) {
+    wb_run_analysis.addEventListener('click', async function(){
+      var raw = ($$('wb_raw') ? $$('wb_raw').value : '').trim();
+      if (!raw) { showJSON('wb_analysis', {error: 'Vloz payload.'}); return; }
+      $$('wb_analysis').textContent = 'Spoustim pipeline...';
+      var ingest = await postJSON('/api/v1/workbench/ingest', {raw: raw});
+      var res = await postJSON('/api/v1/workbench/analyze', {identifier: ingest.identifier || {raw: raw}});
+      showJSON('wb_analysis', res);
+      var risk = $$('wb_risk');
+      if (risk && res.analysis) {
+        var score = res.analysis.risk_score || 0;
+        risk.style.display = 'block';
+        risk.textContent = 'Risk score: ' + score + (res.analysis.notes && res.analysis.notes.length ? ' — ' + res.analysis.notes.join(', ') : '');
+        risk.style.background = score >= 25 ? '#5d1f1f' : score >= 10 ? '#4a3f00' : '#1f3d1f';
+        risk.style.color = score >= 25 ? '#ff6b6b' : score >= 10 ? '#ffd54f' : '#69f0ae';
+      }
+    });
+  }
+
+  var wb_run_reverse = $$('wb_run_reverse');
+  if (wb_run_reverse) {
+    wb_run_reverse.addEventListener('click', async function(){
+      var raw = ($$('wb_raw') ? $$('wb_raw').value : '').trim();
+      if (!raw) { showJSON('wb_reverse', {error: 'Vloz payload.'}); return; }
+      $$('wb_reverse').textContent = 'RE analyza...';
+      var res = await postJSON('/api/v1/workbench/reverse', {raw: raw});
+      showJSON('wb_reverse', res);
+    });
+  }
+
+  var wb_run_tests = $$('wb_run_tests');
+  if (wb_run_tests) {
+    wb_run_tests.addEventListener('click', async function(){
+      var target = ($$('wb_target') ? $$('wb_target').value : '').trim();
+      var mode = $$('wb_mode') ? $$('wb_mode').value : 'url';
+      var runs = parseInt($$('wb_runs') ? $$('wb_runs').value : '3', 10) || 3;
+      if (!target) { showJSON('wb_report', {error: 'Vloz cilovy endpoint.'}); return; }
+      $$('wb_report').textContent = 'Probihaji testy (' + runs + 'x ' + mode + ')...';
+      var res = await postJSON('/api/v1/workbench/test-run', {target: target, profile: {mode: mode, runs: runs}});
+      showJSON('wb_report', res);
+    });
+  }
 })();
 </script>
 {% endblock %}
