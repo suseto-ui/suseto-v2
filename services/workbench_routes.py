@@ -129,3 +129,34 @@ def wb_compare():
     bv = b.get("b", "").strip()
     if not a or not bv: return err("Chybi a nebo b")
     return ok({"comparison": compare_identifiers(a, bv)})
+
+
+# ── HEX Dump Viewer ───────────────────────────────────────────────────────────
+@wb.route("/api/v1/workbench/hex", methods=["POST"])
+def wb_hex():
+    b = jbody()
+    raw = b.get("raw", "").strip()
+    if not raw: return err("Chybi raw")
+    from services.workbench_modules import hex_dump_view
+    return ok({"hex": hex_dump_view(raw)})
+
+
+# ── URL Decoder / Analyzer ────────────────────────────────────────────────────
+@wb.route("/api/v1/workbench/url", methods=["POST"])
+def wb_url():
+    b = jbody()
+    raw = b.get("raw", "").strip()
+    if not raw: return err("Chybi raw")
+    from services.workbench_modules import url_decode_analyze
+    return ok({"url": url_decode_analyze(raw)})
+
+
+# ── Checksum Lab ──────────────────────────────────────────────────────────────
+@wb.route("/api/v1/workbench/checksum", methods=["POST"])
+def wb_checksum():
+    b = jbody()
+    raw = b.get("raw", "").strip()
+    mode = b.get("mode", "auto")
+    if not raw: return err("Chybi raw")
+    from services.workbench_modules import checksum_lab
+    return ok({"checksum": checksum_lab(raw, mode)})
