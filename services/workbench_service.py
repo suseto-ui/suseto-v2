@@ -1,275 +1,403 @@
 # services/workbench_service.py
-import base64, zlib, re, time, random, string
-from dataclasses import dataclass, field
-from typing import Dict, Any, List
-from urllib.parse import urlparse, parse_qs, unquote
+# Data & Identifier Analysis Workbench – core logic
+import base64
+import binascii
+import hashlib
+import json
+import random
+import string
+import time
+import zlib
+from typing import Any, Dict, List
 
-try:
-    import requests as _requests
-    HAS_REQUESTS = True
-except ImportError:
-    HAS_REQUESTS = False
+# ---------------------------------------------------------------------------
+# Ingest & Normalization
+# ---------------------------------------------------------------------------
 
-
-@dataclass
-class Identifier:
-    raw: str
-    type: str
-    normalized: str
-    attributes: Dict[str, Any] = field(default_factory=dict)
-    warnings: List[str] = field(default_factory=list)
-
-    def to_dict(self):
-        return {"raw": self.raw, "type": self.type, "normalized": self.normalized,
-                "attributes": self.attributes, "warnings": self.warnings}
-
-
-def parse_access_gate(raw: str) -> Dict[str, Any]:
-    """MM YY DD HH MM SS FL(2) TY(2) PADD(4) ID(6) = 26 digits"""
+def _classify(raw: str) -> str:
     s = raw.strip()
-    if len(s) != 26 or not s.isdigit():
-        return {}
-    try:
-        MM, YY, DD = s[0:2], s[2:4], s[4:6]
-        HH, mi, SS = s[6:8], s[8:10], s[10:12]
-        FL, TY, PADD, ID = s[12:14], s[14:16], s[16:20], s[20:26]
-        if not (1 <= int(MM) <= 12): return {}
-        if not (1 <= int(DD) <= 31): return {}
-        if not (0 <= int(HH) <= 23): return {}
-        if not (0 <= int(mi) <= 59): return {}
-        if not (0 <= int(SS) <= 59): return {}
-        flag_map = {"00": "vstup", "01": "vystup", "02": "alarm", "03": "odmitnuto"}
-        return {
-            "datum": f"{DD}.{MM}.20{YY}",
-            "cas": f"{HH}:{mi}:{SS}",
-            "datetime_iso": f"20{YY}-{MM}-{DD}T{HH}:{mi}:{SS}",
-            "mesic": int(MM), "rok": int("20"+YY), "den": int(DD),
-            "hodiny": int(HH), "minuty": int(mi), "sekundy": int(SS),
-            "flag": FL, "flag_label": flag_map.get(FL, f"neznamy ({FL})"),
-            "typ_brany": TY, "padding": PADD,
-            "id_karty": ID, "id_karty_int": int(ID),
-        }
-    except Exception:
-        return {}
-
-
-def classify_identifier(raw: str) -> str:
-    s = raw.strip()
-    if len(s) == 26 and s.isdigit():
-        if parse_access_gate(s):
-            return "access_gate"
     if s.startswith(("http://", "https://")):
         return "url"
-    if s.startswith("{") or s.startswith("["):
+    if s.startswith("data:"):
+        return "data_uri"
+    if all(c in "0123456789ABCDEFabcdef" for c in s) and len(s) >= 8 and len(s) % 2 == 0:
+        return "hex"
+    # MAC address
+    if s.count(":") == 5 and all(len(p) == 2 for p in s.split(":")):
+        return "mac"
+    # IMEI – 15 digits
+    if s.isdigit() and len(s) == 15:
+        return "imei"
+    # EAN-13 / EAN-8
+    if s.isdigit() and len(s) in (8, 13):
+        return "ean"
+    # UUID / GUID
+    import re
+    if re.fullmatch(r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', s):
+        return "uuid"
+    # JWT
+    parts = s.split(".")
+    if len(parts) == 3 and all(p.replace("-", "+").replace("_", "/") for p in parts):
         try:
-            import json; json.loads(s); return "json"
+            base64.b64decode(parts[0] + "==")
+            base64.b64decode(parts[1] + "==")
+            return "jwt"
         except Exception:
             pass
-    if re.match(r'^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$', s):
-        return "jwt"
-    if re.match(r'^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$', s):
-        return "mac"
-    if re.match(r'^\d{15}$', s): return "imei"
-    if re.match(r'^\d{13}$', s): return "ean13"
-    if re.match(r'^\d{8}$', s):  return "ean8"
-    if re.match(r'^\d{12}$', s): return "upc_a"
-    if re.match(r'^[0-9A-Fa-f]+$', s) and len(s) % 2 == 0 and len(s) >= 8:
-        return "hex"
-    try:
-        if re.match(r'^[A-Za-z0-9+/]+=*$', s) and len(s) % 4 == 0 and len(s) >= 8:
-            base64.b64decode(s); return "base64"
-    except Exception:
-        pass
-    if re.match(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$', s):
-        return "uuid"
+    # Base64 heuristic (length divisible by 4, only valid chars)
+    b64_chars = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
+    if len(s) % 4 == 0 and all(c in b64_chars for c in s) and len(s) >= 8:
+        return "base64"
+    # JSON
+    if (s.startswith("{") and s.endswith("}")) or (s.startswith("[") and s.endswith("]")):
+        try:
+            json.loads(s)
+            return "json"
+        except Exception:
+            pass
     return "unknown"
 
 
-def normalize_identifier(raw: str, id_type: str) -> str:
-    if id_type == "hex": return raw.strip().lower()
-    if id_type == "mac": return raw.upper().replace("-", ":")
-    return raw.strip()
+def _normalize(raw: str, id_type: str) -> str:
+    s = raw.strip()
+    if id_type == "hex":
+        return s.upper()
+    if id_type == "mac":
+        return s.upper()
+    if id_type == "url":
+        return s
+    return s
 
 
-def enrich_attributes(identifier: Identifier) -> None:
-    t, raw = identifier.type, identifier.normalized
-    if t == "access_gate":
-        identifier.attributes.update(parse_access_gate(raw))
-    elif t == "url":
-        u = urlparse(raw)
-        identifier.attributes.update({"host": u.netloc, "path": u.path,
-                                       "params": parse_qs(u.query), "scheme": u.scheme})
-    elif t == "hex":
-        identifier.attributes["length_bytes"] = len(raw) // 2
-    elif t == "base64":
+def ingest_identifier(raw: str, meta: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize and type an arbitrary raw identifier."""
+    id_type = _classify(raw)
+    normalized = _normalize(raw, id_type)
+    attributes: Dict[str, Any] = dict(meta)
+    warnings: List[str] = []
+
+    if id_type == "url":
+        from urllib.parse import urlparse, parse_qs
+        u = urlparse(normalized)
+        attributes["scheme"] = u.scheme
+        attributes["host"] = u.netloc
+        attributes["path"] = u.path
+        attributes["params"] = parse_qs(u.query)
+
+    elif id_type == "hex":
+        attributes["length_bytes"] = len(normalized) // 2
+        attributes["sha256"] = hashlib.sha256(bytes.fromhex(normalized)).hexdigest()
+
+    elif id_type == "ean":
+        digits = [int(c) for c in normalized]
+        # EAN check digit validation
+        if len(digits) == 13:
+            total = sum(d * (1 if i % 2 == 0 else 3) for i, d in enumerate(digits[:12]))
+            expected = (10 - (total % 10)) % 10
+            attributes["check_digit_valid"] = digits[-1] == expected
+        elif len(digits) == 8:
+            total = sum(d * (3 if i % 2 == 0 else 1) for i, d in enumerate(digits[:7]))
+            expected = (10 - (total % 10)) % 10
+            attributes["check_digit_valid"] = digits[-1] == expected
+
+    elif id_type == "imei":
+        # Luhn algorithm
+        d = [int(c) for c in normalized]
+        total = 0
+        for i, n in enumerate(reversed(d)):
+            if i % 2 == 1:
+                n *= 2
+                if n > 9:
+                    n -= 9
+            total += n
+        attributes["luhn_valid"] = (total % 10) == 0
+
+    elif id_type == "jwt":
+        parts = normalized.split(".")
         try:
-            d = base64.b64decode(raw + "===")
-            identifier.attributes["decoded_hex"] = d.hex()
-            identifier.attributes["decoded_len"] = len(d)
-            try: identifier.attributes["decoded_utf8"] = d.decode("utf-8")
-            except Exception: pass
-        except Exception:
-            identifier.warnings.append("base64 decode failed")
-    elif t == "jwt":
-        parts = raw.split(".")
-        try:
-            import json as _j
-            def pad(s): return s + "=" * (-len(s) % 4)
-            identifier.attributes["header"]  = _j.loads(base64.urlsafe_b64decode(pad(parts[0])))
-            identifier.attributes["payload"] = _j.loads(base64.urlsafe_b64decode(pad(parts[1])))
+            header = json.loads(base64.b64decode(parts[0] + "==").decode("utf-8", errors="replace"))
+            payload_decoded = json.loads(base64.b64decode(parts[1] + "==").decode("utf-8", errors="replace"))
+            attributes["header"] = header
+            attributes["payload_claims"] = payload_decoded
+            if "exp" in payload_decoded:
+                import datetime
+                exp_dt = datetime.datetime.utcfromtimestamp(payload_decoded["exp"]).isoformat()
+                attributes["expires"] = exp_dt
+                if payload_decoded["exp"] < time.time():
+                    warnings.append("JWT je expirován.")
         except Exception as e:
-            identifier.warnings.append(f"JWT: {e}")
-    elif t == "ean13":
-        identifier.attributes.update({"check_digit": raw[-1],
-                                       "company_prefix": raw[:7], "gs1_prefix": raw[:3]})
-    elif t == "imei":
-        identifier.attributes.update({"tac": raw[:8], "serial": raw[8:14], "check": raw[14]})
-    elif t == "mac":
-        p = raw.upper().replace("-",":").split(":")
-        identifier.attributes.update({"oui": ":".join(p[:3]), "nic": ":".join(p[3:])})
+            warnings.append(f"JWT decode error: {e}")
+
+    elif id_type == "base64":
+        try:
+            decoded = base64.b64decode(normalized + "==")
+            attributes["decoded_hex"] = decoded.hex()
+            attributes["decoded_length"] = len(decoded)
+        except Exception:
+            warnings.append("base64 decode selhal.")
+
+    elif id_type == "json":
+        try:
+            obj = json.loads(normalized)
+            attributes["keys"] = list(obj.keys()) if isinstance(obj, dict) else []
+            attributes["json_type"] = type(obj).__name__
+        except Exception:
+            pass
+
+    return {
+        "raw": raw,
+        "type": id_type,
+        "normalized": normalized,
+        "attributes": attributes,
+        "warnings": warnings,
+    }
 
 
-def ingest_identifier(raw: str, meta: Dict[str, Any] = None) -> Identifier:
-    id_type = classify_identifier(raw)
-    norm = normalize_identifier(raw, id_type)
-    ident = Identifier(raw=raw, type=id_type, normalized=norm,
-                       attributes=dict(meta or {}), warnings=[])
-    enrich_attributes(ident)
-    return ident
+# ---------------------------------------------------------------------------
+# Analysis Pipeline
+# ---------------------------------------------------------------------------
 
-
-def run_analysis_pipeline(identifier_data: Dict[str, Any]) -> Dict[str, Any]:
-    ident = Identifier(
-        raw=identifier_data.get("raw", ""),
-        type=identifier_data.get("type", "unknown"),
-        normalized=identifier_data.get("normalized", identifier_data.get("raw", "")),
-        attributes=dict(identifier_data.get("attributes", {})),
-        warnings=list(identifier_data.get("warnings", [])),
-    )
-    if ident.type in ("unknown", ""):
-        ident.type = classify_identifier(ident.raw)
-        ident.normalized = normalize_identifier(ident.raw, ident.type)
-        enrich_attributes(ident)
+def run_analysis_pipeline(identifier: Dict[str, Any]) -> Dict[str, Any]:
+    """Run risk/enrichment analysis on an already-ingested identifier dict."""
+    if not identifier.get("type") or identifier["type"] == "unknown":
+        enriched = ingest_identifier(identifier.get("raw", ""), identifier.get("attributes", {}))
+    else:
+        enriched = dict(identifier)
 
     risk_score = 0
-    notes = []
+    notes: List[str] = []
 
-    if ident.type == "access_gate":
-        ag = ident.attributes
-        notes.append(f"Pruchod branou: {ag.get('datum','')} {ag.get('cas','')}")
-        notes.append(f"ID karty: {ag.get('id_karty','')} | Typ brany: {ag.get('typ_brany','')}")
-        notes.append(f"Status: {ag.get('flag_label','')}")
-        if ag.get("flag") not in ("00", "01"):
+    id_type = enriched.get("type", "unknown")
+    attrs = enriched.get("attributes", {})
+
+    if id_type == "url":
+        path = attrs.get("path", "")
+        params = attrs.get("params", {})
+        if any(kw in path.lower() for kw in ("login", "auth", "token", "password", "reset", "admin")):
+            risk_score += 25
+            notes.append("URL obsahuje citlivé klíčové slovo v cestě.")
+        if len(params) > 5:
+            risk_score += 10
+            notes.append(f"URL obsahuje {len(params)} parametrů – potenciální data exfiltrace.")
+        if attrs.get("scheme") == "http":
+            risk_score += 15
+            notes.append("Nezabezpečené HTTP schéma.")
+
+    elif id_type == "jwt":
+        claims = attrs.get("payload_claims", {})
+        if "exp" not in claims:
+            risk_score += 20
+            notes.append("JWT nemá expiraci (chybí 'exp' claim).")
+        header = attrs.get("header", {})
+        if header.get("alg", "").upper() in ("NONE", ""):
+            risk_score += 50
+            notes.append("JWT algoritmus je 'none' – kritická zranitelnost.")
+        if "HS256" == header.get("alg", ""):
+            notes.append("JWT používá HS256 – symetrický podpis, bezpečný pokud je tajemství silné.")
+
+    elif id_type == "ean":
+        if attrs.get("check_digit_valid") is False:
             risk_score += 30
-            notes.append("Nestandardni flag pruchodu!")
-    elif ident.type == "url":
-        path = ident.attributes.get("path", "")
-        if any(x in path for x in ("login", "auth", "token")):
-            risk_score += 20; notes.append("URL obsahuje autentizacni cestu.")
-        if not ident.normalized.startswith("https://"):
-            risk_score += 15; notes.append("Nezabezpecene HTTP.")
-    elif ident.type == "jwt":
-        payload = ident.attributes.get("payload", {})
-        import time as _t
-        if "exp" in payload and payload["exp"] < _t.time():
-            risk_score += 25; notes.append("JWT token vypršel.")
-        notes.append(f"Algoritmus: {ident.attributes.get('header',{}).get('alg','?')}")
+            notes.append("EAN check digit neplatný – pravděpodobně poškozený nebo falzifikát.")
+        else:
+            notes.append("EAN check digit OK.")
 
-    return {"identifier": ident.to_dict(), "risk_score": risk_score, "notes": notes}
+    elif id_type == "imei":
+        if attrs.get("luhn_valid") is False:
+            risk_score += 40
+            notes.append("IMEI Luhn check selhal – neplatné IMEI.")
+        else:
+            notes.append("IMEI Luhn check OK.")
+
+    elif id_type == "hex":
+        length = attrs.get("length_bytes", 0)
+        if length in (16, 32):
+            notes.append(f"HEX délka {length} bajtů odpovídá MD5 nebo SHA-256 hash.")
+
+    elif id_type == "base64":
+        if not attrs.get("decoded_hex"):
+            risk_score += 10
+            notes.append("base64 dekódování selhalo.")
+        else:
+            notes.append("base64 úspěšně dekódován.")
+
+    if risk_score == 0 and not notes:
+        notes.append("Žádné rizikové faktory nebyly detekovány.")
+
+    return {
+        "identifier": enriched,
+        "risk_score": min(risk_score, 100),
+        "risk_level": "critical" if risk_score >= 70 else "high" if risk_score >= 40 else "medium" if risk_score >= 20 else "low",
+        "notes": notes,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Reverse Engineering Engine
+# ---------------------------------------------------------------------------
+
+def _try_base64(raw: str) -> Dict[str, Any]:
+    try:
+        decoded = base64.b64decode(raw + "===")
+        return {"ok": True, "method": "base64", "decoded_hex": decoded.hex(),
+                "decoded_text": decoded.decode("utf-8", errors="replace"), "length": len(decoded)}
+    except Exception:
+        return {"ok": False, "method": "base64"}
+
+
+def _try_zlib(data: bytes) -> Dict[str, Any]:
+    try:
+        out = zlib.decompress(data)
+        return {"ok": True, "method": "zlib", "decoded_text": out.decode("utf-8", errors="replace"), "length": len(out)}
+    except Exception:
+        return {"ok": False, "method": "zlib"}
+
+
+def _try_hex_decode(raw: str) -> Dict[str, Any]:
+    try:
+        data = bytes.fromhex(raw)
+        text = data.decode("utf-8", errors="replace")
+        return {"ok": True, "method": "hex_to_ascii", "decoded_text": text, "length": len(data)}
+    except Exception:
+        return {"ok": False, "method": "hex_to_ascii"}
+
+
+def _try_url_decode(raw: str) -> Dict[str, Any]:
+    from urllib.parse import unquote
+    decoded = unquote(raw)
+    if decoded != raw:
+        return {"ok": True, "method": "url_decode", "decoded_text": decoded}
+    return {"ok": False, "method": "url_decode"}
+
+
+def _detect_encoding_layers(raw: str) -> List[str]:
+    layers = []
+    s = raw.strip()
+    # Layer detection heuristics
+    if all(c in "0123456789ABCDEFabcdef" for c in s) and len(s) % 2 == 0:
+        layers.append("hex")
+    b64ok = True
+    try:
+        base64.b64decode(s + "===")
+    except Exception:
+        b64ok = False
+    if b64ok and len(s) % 4 <= 2:
+        layers.append("base64")
+    if "%" in s:
+        layers.append("url_encoded")
+    if s.startswith("{") or s.startswith("["):
+        layers.append("json")
+    if not layers:
+        layers.append("plaintext")
+    return layers
 
 
 def run_reverse_engineering(raw: str) -> Dict[str, Any]:
-    results = []
-    s = raw.strip()
-    if len(s) == 26 and s.isdigit():
-        ag = parse_access_gate(s)
-        if ag:
-            results.append({"metoda": "access_gate_parser", "ok": True,
-                            "typ": "Kod vstupni brany", "vysledek": ag})
-    try:
-        d = base64.b64decode(s + "===")
-        results.append({"metoda": "base64", "ok": True, "decoded_hex": d.hex(),
-                        "decoded_utf8": d.decode("utf-8", errors="replace")})
+    candidates = []
+    layers = _detect_encoding_layers(raw)
+
+    b64_result = _try_base64(raw)
+    candidates.append(b64_result)
+    if b64_result["ok"]:
+        # Try zlib on base64-decoded bytes
         try:
-            dc = zlib.decompress(d)
-            results.append({"metoda": "base64+zlib", "ok": True,
-                            "decoded": dc.decode("utf-8", errors="replace")})
+            inner = bytes.fromhex(b64_result["decoded_hex"])
+            z = _try_zlib(inner)
+            candidates.append(z)
         except Exception:
             pass
-    except Exception:
-        results.append({"metoda": "base64", "ok": False})
-    if re.match(r'^[0-9A-Fa-f]+$', s) and len(s) % 2 == 0:
-        rb = bytes.fromhex(s)
-        results.append({"metoda": "hex_decode", "ok": True,
-                        "decoded_utf8": rb.decode("utf-8", errors="replace"),
-                        "length_bytes": len(rb)})
+
+    hex_result = _try_hex_decode(raw)
+    candidates.append(hex_result)
+    if hex_result["ok"]:
         try:
-            dc = zlib.decompress(rb)
-            results.append({"metoda": "hex+zlib", "ok": True,
-                            "decoded": dc.decode("utf-8", errors="replace")})
+            inner = bytes.fromhex(raw)
+            z = _try_zlib(inner)
+            candidates.append(z)
         except Exception:
             pass
-    du = unquote(s)
-    if du != s:
-        results.append({"metoda": "url_decode", "ok": True, "decoded": du})
-    if re.match(r'^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$', s):
-        parts = s.split(".")
-        try:
-            import json as _j
-            def pad(x): return x + "=" * (-len(x) % 4)
-            results.append({"metoda": "jwt_decode", "ok": True,
-                            "header": _j.loads(base64.urlsafe_b64decode(pad(parts[0]))),
-                            "payload": _j.loads(base64.urlsafe_b64decode(pad(parts[1])))})
-        except Exception as e:
-            results.append({"metoda": "jwt_decode", "ok": False, "error": str(e)})
-    return {"input": raw, "candidates": results}
+
+    url_result = _try_url_decode(raw)
+    candidates.append(url_result)
+
+    # Shannon entropy
+    if raw:
+        from collections import Counter
+        import math
+        freq = Counter(raw)
+        entropy = -sum((c / len(raw)) * math.log2(c / len(raw)) for c in freq.values())
+    else:
+        entropy = 0.0
+
+    return {
+        "input": raw,
+        "detected_layers": layers,
+        "entropy": round(entropy, 3),
+        "candidates": [c for c in candidates if c["ok"]],
+        "all_attempts": candidates,
+    }
 
 
-def _gen_payload(mode: str) -> str:
+# ---------------------------------------------------------------------------
+# Test Harness
+# ---------------------------------------------------------------------------
+
+def _generate_payload(mode: str) -> str:
     if mode == "url":
-        t = "".join(random.choices(string.ascii_letters + string.digits, k=16))
-        return f"https://example.com/gate?token={t}"
+        token = "".join(random.choice(string.ascii_letters + string.digits) for _ in range(16))
+        return f"https://example.com/scan?id={token}"
     if mode == "hex":
-        return "".join(random.choices("0123456789ABCDEF", k=32))
+        return "".join(random.choice("0123456789ABCDEF") for _ in range(32))
+    if mode == "ean13":
+        digits = [random.randint(0, 9) for _ in range(12)]
+        total = sum(d * (1 if i % 2 == 0 else 3) for i, d in enumerate(digits))
+        check = (10 - (total % 10)) % 10
+        return "".join(str(d) for d in digits) + str(check)
     if mode == "base64":
-        return base64.b64encode("".join(random.choices(string.ascii_letters, k=12)).encode()).decode()
-    if mode == "gtin":
-        return "".join(random.choices(string.digits, k=13))
-    if mode == "access_gate":
-        import datetime
-        n = datetime.datetime.now()
-        card = f"{random.randint(1000,99999):06d}"
-        return f"{n.month:02d}{n.year%100:02d}{n.day:02d}{n.hour:02d}{n.minute:02d}{n.second:02d}00100000{card}"
-    return "TEST"
+        data = "".join(random.choice(string.printable[:62]) for _ in range(12))
+        return base64.b64encode(data.encode()).decode()
+    return f"TESTPAYLOAD-{random.randint(1000, 9999)}"
 
 
 def run_test_harness(target: str, profile: Dict[str, Any]) -> Dict[str, Any]:
+    """Send synthetic test payloads to a target endpoint and collect results."""
     runs = min(int(profile.get("runs", 5)), 20)
     mode = profile.get("mode", "url")
-    results = []
-    for _ in range(runs):
-        payload = _gen_payload(mode)
-        row: Dict[str, Any] = {"payload": payload}
-        if HAS_REQUESTS:
+    results: List[Dict[str, Any]] = []
+
+    try:
+        import requests as req_lib
+        timeout = int(profile.get("timeout", 5))
+        for _ in range(runs):
+            payload = _generate_payload(mode)
+            t0 = time.time()
             try:
-                r = _requests.post(target, json={"raw": payload}, timeout=5)
-                row.update({"status": r.status_code,
-                            "time_ms": int(r.elapsed.total_seconds()*1000),
-                            "body_sample": r.text[:300]})
+                resp = req_lib.post(target, json={"payload": payload}, timeout=timeout)
+                elapsed = int((time.time() - t0) * 1000)
+                results.append({
+                    "payload": payload,
+                    "status": resp.status_code,
+                    "time_ms": elapsed,
+                    "body_sample": resp.text[:300],
+                    "ok": resp.status_code < 400,
+                })
             except Exception as e:
-                row["error"] = str(e)
-        else:
-            import urllib.request as _ur
-            import json as _j
-            try:
-                req = _ur.Request(target, method="POST")
-                req.add_header("Content-Type", "application/json")
-                req.data = _j.dumps({"raw": payload}).encode()
-                with _ur.urlopen(req, timeout=5) as resp:
-                    row.update({"status": resp.status,
-                                "body_sample": resp.read(300).decode("utf-8", errors="replace")})
-            except Exception as e:
-                row["error"] = str(e)
-        results.append(row)
-        time.sleep(0.1)
-    return {"target": target, "profile": profile, "runs": runs, "results": results}
+                results.append({"payload": payload, "error": str(e), "ok": False})
+            time.sleep(0.1)
+    except ImportError:
+        return {
+            "target": target,
+            "profile": profile,
+            "error": "Balíček 'requests' není nainstalován. Spusť instalaci přes Debug > Instalovat závislosti.",
+            "results": [],
+        }
+
+    passed = sum(1 for r in results if r.get("ok"))
+    return {
+        "target": target,
+        "profile": profile,
+        "total": runs,
+        "passed": passed,
+        "failed": runs - passed,
+        "results": results,
+    }
