@@ -17,7 +17,6 @@ def err(msg, code=400): return jsonify({"ok": False, "error": msg}), code
 def jbody(): return request.get_json(force=True, silent=True) or {}
 
 def split_codes(raw):
-    """Split codes string by newline or comma."""
     return [c.strip() for c in re.split(r"[,\n]+", raw) if c.strip()]
 
 def register_workbench(app):
@@ -27,7 +26,6 @@ def register_workbench(app):
 def workbench_page():
     return render_template("pages/workbench.html")
 
-# ── core ──────────────────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/ingest", methods=["POST"])
 def wb_ingest():
     b = jbody()
@@ -55,7 +53,6 @@ def wb_test_run():
     if not b.get("target"): return err("Chybi target")
     return ok({"report": run_test_harness(b["target"], b.get("profile", {}))})
 
-# ── batch ─────────────────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/batch", methods=["POST"])
 def wb_batch():
     b = jbody()
@@ -72,7 +69,6 @@ def wb_batch_export():
     return Response(csv_out, mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=workbench_export.csv"})
 
-# ── timeline ──────────────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/timeline", methods=["POST"])
 def wb_timeline():
     b = jbody()
@@ -82,7 +78,6 @@ def wb_timeline():
     if not codes: return err("Chybi codes")
     return ok({"timeline": build_timeline(codes)})
 
-# ── pattern detector ──────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/patterns", methods=["POST"])
 def wb_patterns():
     b = jbody()
@@ -92,7 +87,6 @@ def wb_patterns():
     if not codes: return err("Chybi codes")
     return ok({"patterns": detect_patterns(codes)})
 
-# ── GS1 ───────────────────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/gs1", methods=["POST"])
 def wb_gs1():
     b = jbody()
@@ -100,7 +94,6 @@ def wb_gs1():
     if not raw: return err("Chybi raw")
     return ok({"gs1": parse_gs1(raw)})
 
-# ── RFID ──────────────────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/rfid", methods=["POST"])
 def wb_rfid():
     b = jbody()
@@ -108,7 +101,6 @@ def wb_rfid():
     if not raw: return err("Chybi raw")
     return ok({"rfid": parse_rfid_dump(raw)})
 
-# ── Entropy ───────────────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/entropy", methods=["POST"])
 def wb_entropy():
     b = jbody()
@@ -116,7 +108,6 @@ def wb_entropy():
     if not raw: return err("Chybi raw")
     return ok({"entropy": analyze_entropy(raw)})
 
-# ── JWT ───────────────────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/jwt", methods=["POST"])
 def wb_jwt():
     b = jbody()
@@ -124,7 +115,6 @@ def wb_jwt():
     if not raw: return err("Chybi raw")
     return ok({"jwt": inspect_jwt(raw)})
 
-# ── Credentials ───────────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/credentials", methods=["POST"])
 def wb_credentials():
     b = jbody()
@@ -132,7 +122,6 @@ def wb_credentials():
     if not text: return err("Chybi text")
     return ok({"scan": scan_credentials(text)})
 
-# ── Compare ───────────────────────────────────────────────────────────────────
 @wb.route("/api/v1/workbench/compare", methods=["POST"])
 def wb_compare():
     b = jbody()
