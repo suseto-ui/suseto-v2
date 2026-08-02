@@ -30,7 +30,9 @@ from services.audit_service import write as audit_write, list_entries as audit_l
 from services.decode_service import chain as decode_chain, pattern_library
 from services.location_service import list_locations, add_location
 from services.timeline_service import add as timeline_add, list_for as timeline_list
+from services.workbench_routes import register_workbench
 app=Flask(__name__,template_folder="templates",static_folder="static"); app.config["TEMPLATES_AUTO_RELOAD"]=True; app.secret_key=CONFIG["SECRET_KEY"]; application=app
+register_workbench(app)
 def current_user(): return {"username":session.get("username"),"role":session.get("role")} if session.get("username") else None
 def require_role(*roles):
     u=current_user()
