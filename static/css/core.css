@@ -8,3 +8,18 @@
 
 @media(max-width:760px){.shell-header{align-items:flex-start}.brand-text{display:none}.topnav{justify-content:flex-end;gap:2px}.topnav>a,.nav-group summary{padding:8px 7px;font-size:13px}.nav-menu{right:0;min-width:175px}}
 .print-label{border:2px solid #111827;border-radius:12px;padding:28px;min-height:240px}.print-label code{display:block;padding:16px;background:#f1f5f9;font-size:16px;word-break:break-all}@media print{.site-header,.page-head,.aidc-layout>form{display:none}.print-label{border:0}}.mobile-ops{max-width:640px;margin:0 auto}.print-label{margin-bottom:16px}@media(max-width:760px){.page-shell{padding:14px 0 32px}.panel{padding:16px}.form-actions{flex-wrap:wrap}.btn{width:100%}}
+/* ── Workbench nav dropdown ─────────────────────────────── */
+.nav-menu-workbench{min-width:240px}
+.nav-menu hr{border:none;border-top:1px solid rgba(148,163,184,.2);margin:4px 0}
+/* active nav link */
+.topnav>a.active,.nav-menu a.active{background:rgba(96,165,250,.22);color:#fff;font-weight:800}
+/* card-grid 3-col → 2-col at medium */
+@media(max-width:1100px){.card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.card-grid{grid-template-columns:1fr}}
+/* card hover */
+.panel.card{transition:box-shadow .18s,transform .18s;cursor:default}
+.panel.card:hover{box-shadow:0 24px 52px rgba(15,23,42,.14);transform:translateY(-2px)}
+/* Workbench page */
+.wb-page-header{margin-bottom:1.5rem}
+.wb-page-header h1{font-size:clamp(22px,3vw,34px);font-weight:800;margin:0 0 .3rem}
+.wb-page-header .subtitle{color:#64748b;font-size:.9rem;margin:0}
