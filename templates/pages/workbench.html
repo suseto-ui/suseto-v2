@@ -226,6 +226,62 @@ label{font-size:.78rem;color:#888}
 .wb-diff-row.same{background:#0a1a0a;border-left:3px solid #2a5c2a}
 @media(max-width:768px){.wb-grid2,.wb-compare-grid{grid-template-columns:1fr}.wb-tabs{gap:.25rem}}
 </style>
+<!-- TAB: HEX DUMP VIEWER -->
+<div class="wb-panel" id="tab-hex">
+  <section class="wb-card wb-card-full">
+    <h2>&#128187; HEX Dump Viewer</h2>
+    <p class="hint">Vloz HEX retezec (s mezerami nebo bez). Zobrazi offset tabulku, ASCII, detekci formatu a entropii.</p>
+    <textarea id="hex_raw" rows="5" placeholder="FF D8 FF E0 00 10 4A 46 49 46 ..."></textarea>
+    <button id="hex_run" class="btn-primary">Analyzovat HEX</button>
+    <div id="hex_sig" style="display:none;margin:.5rem 0;padding:.3rem .7rem;border-radius:5px;background:#1a2a1a;color:#69f0ae;font-size:.8rem;font-weight:700"></div>
+    <div id="hex_entropy" style="display:none;margin-bottom:.5rem;font-size:.78rem;color:#aaa"></div>
+    <div id="hex_table_wrap" style="display:none;overflow-x:auto;margin-top:.5rem">
+      <table id="hex_table" style="border-collapse:collapse;font-family:monospace;font-size:.72rem;width:100%">
+        <thead><tr>
+          <th style="color:#4fc3f7;padding:.2rem .5rem;text-align:left">Offset</th>
+          <th style="color:#4fc3f7;padding:.2rem .5rem;text-align:left">HEX (16 bytů)</th>
+          <th style="color:#4fc3f7;padding:.2rem .5rem;text-align:left">ASCII</th>
+        </tr></thead>
+        <tbody id="hex_tbody"></tbody>
+      </table>
+    </div>
+    <pre id="hex_result" class="json-out"></pre>
+  </section>
+</div>
+
+<!-- TAB: URL DEKODER -->
+<div class="wb-panel" id="tab-url">
+  <section class="wb-card wb-card-full">
+    <h2>&#128279; URL Dekoder &amp; Analyzer</h2>
+    <p class="hint">Forenzni analyza URL &mdash; parametry, tokeny, open redirect, SQLi, base64 v parametrech.</p>
+    <textarea id="url_raw" rows="3" placeholder="https://example.com/login?token=eyJ...&amp;redirect=http%3A%2F%2Fevil.com"></textarea>
+    <button id="url_run" class="btn-primary">Analyzovat URL</button>
+    <div id="url_risks" class="wb-alerts"></div>
+    <pre id="url_result" class="json-out"></pre>
+  </section>
+</div>
+
+<!-- TAB: CHECKSUM LAB -->
+<div class="wb-panel" id="tab-checksum">
+  <section class="wb-card wb-card-full">
+    <h2>&#10003; Checksum Lab</h2>
+    <p class="hint">MD5, SHA1, SHA256, CRC32, Luhn (IMEI/kreditni karta), EAN checksum, GTIN-14, ISBN-13.</p>
+    <div class="wb-row">
+      <input id="chk_raw" placeholder="8595067600011" style="flex:1">
+      <select id="chk_mode" style="width:120px">
+        <option value="auto">Auto</option>
+        <option value="luhn">Luhn</option>
+        <option value="ean">EAN</option>
+        <option value="gtin14">GTIN-14</option>
+        <option value="isbn">ISBN</option>
+      </select>
+      <button id="chk_run" class="btn-primary">Vypocitat</button>
+    </div>
+    <div id="chk_summary" style="display:none;margin:.5rem 0"></div>
+    <pre id="chk_result" class="json-out"></pre>
+  </section>
+</div>
+
 {% endblock %}
 
 {% block extra_scripts %}
@@ -449,6 +505,71 @@ label{font-size:.78rem;color:#888}
           +(entry.shoda?'<span style="color:#69f0ae">✓</span>':'<span style="color:#ff6b6b">≠</span>');
         diff.appendChild(d);
       });
+    }
+  });
+
+
+  // ── HEX DUMP ────────────────────────────────────────────────────────────────
+  document.getElementById('hex_run').addEventListener('click', async function(){
+    var raw = document.getElementById('hex_raw').value.trim();
+    if(!raw){ document.getElementById('hex_result').textContent='Vloz HEX'; return; }
+    document.getElementById('hex_result').textContent = 'Analyzuji...';
+    var res = await postJSON('/api/v1/workbench/hex', {raw: raw});
+    showJSON('hex_result', res);
+    if(res.hex && res.hex.ok){
+      var h = res.hex;
+      var sig = document.getElementById('hex_sig');
+      if(sig){ sig.style.display = h.signature ? 'block' : 'none'; sig.textContent = 'Format: ' + (h.signature || ''); }
+      var ent = document.getElementById('hex_entropy');
+      if(ent){ ent.style.display='block'; ent.textContent = 'Entropie: ' + h.entropy + ' bps (' + h.entropy_verdict + ') | Velikost: ' + h.length_bytes + ' B'; }
+      var wrap = document.getElementById('hex_table_wrap');
+      var tbody = document.getElementById('hex_tbody');
+      if(wrap && tbody && h.lines){
+        tbody.innerHTML = '';
+        h.lines.forEach(function(l){
+          var tr = document.createElement('tr');
+          tr.innerHTML = '<td style="color:#666;padding:.15rem .5rem">' + l.offset + '</td>'
+            + '<td style="color:#4fc3f7;padding:.15rem .5rem;letter-spacing:.05em">' + l.hex + '</td>'
+            + '<td style="color:#aaa;padding:.15rem .5rem">' + l.ascii + '</td>';
+          tbody.appendChild(tr);
+        });
+        wrap.style.display = 'block';
+      }
+    }
+  });
+
+  // ── URL DEKODER ──────────────────────────────────────────────────────────────
+  document.getElementById('url_run').addEventListener('click', async function(){
+    var raw = document.getElementById('url_raw').value.trim();
+    if(!raw){ showJSON('url_result', {error:'Vloz URL'}); return; }
+    var res = await postJSON('/api/v1/workbench/url', {raw: raw});
+    showJSON('url_result', res);
+    if(res.url && res.url.risks){
+      var risks = res.url.risks.map(function(r){ return {zprava: r, zavaznost: 'vysoka'}; });
+      showAlerts('url_risks', risks, 'zprava', 'zavaznost');
+    }
+  });
+
+  // ── CHECKSUM LAB ─────────────────────────────────────────────────────────────
+  document.getElementById('chk_run').addEventListener('click', async function(){
+    var raw = document.getElementById('chk_raw').value.trim();
+    var mode = document.getElementById('chk_mode').value;
+    if(!raw){ showJSON('chk_result', {error:'Vloz hodnotu'}); return; }
+    var res = await postJSON('/api/v1/workbench/checksum', {raw: raw, mode: mode});
+    showJSON('chk_result', res);
+    if(res.checksum){
+      var c = res.checksum.checksums;
+      var summary = document.getElementById('chk_summary');
+      if(summary){
+        var parts = [];
+        if(c.ean) parts.push('EAN: ' + (c.ean.valid ? '<span style="color:#69f0ae">VALID</span>' : '<span style="color:#ff6b6b">INVALID (ocekavano: '+c.ean.computed_check+')</span>'));
+        if(c.luhn) parts.push('Luhn: ' + (c.luhn.valid ? '<span style="color:#69f0ae">VALID</span>' : '<span style="color:#ff6b6b">INVALID</span>'));
+        if(c.gtin14) parts.push('GTIN-14: ' + (c.gtin14.valid ? '<span style="color:#69f0ae">VALID</span>' : '<span style="color:#ff6b6b">INVALID</span>'));
+        if(parts.length){
+          summary.style.display = 'block';
+          summary.innerHTML = '<div style="background:#0d0d0d;border:1px solid #222;border-radius:6px;padding:.5rem .75rem;font-size:.8rem">' + parts.join(' &nbsp;|&nbsp; ') + '</div>';
+        }
+      }
     }
   });
 
