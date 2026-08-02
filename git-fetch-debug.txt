@@ -1,0 +1,291 @@
+23:34:12.248984 git.c:502               trace: built-in: git fetch origin 34f09db79c5cd4dd62a0c9f6f999d03f94089fe0
+23:34:12.249692 run-command.c:673       trace: run_command: GIT_DIR=.git git remote-https origin https://github.com/suseto-ui/suseto-v2
+23:34:12.249715 run-command.c:765       trace: start_command: /usr/local/libexec/git-core/git remote-https origin https://github.com/suseto-ui/suseto-v2
+23:34:12.251696 git.c:808               trace: exec: git-remote-https origin https://github.com/suseto-ui/suseto-v2
+23:34:12.251735 run-command.c:673       trace: run_command: git-remote-https origin https://github.com/suseto-ui/suseto-v2
+23:34:12.251745 run-command.c:765       trace: start_command: /usr/local/libexec/git-core/git-remote-https origin https://github.com/suseto-ui/suseto-v2
+23:34:12.259955 http.c:890              == Info: Couldn't find host github.com in the .netrc file; using defaults
+23:34:12.263217 http.c:890              == Info: Host github.com:443 was resolved.
+23:34:12.263230 http.c:890              == Info: IPv6: (none)
+23:34:12.263232 http.c:890              == Info: IPv4: 140.82.121.4
+23:34:12.263248 http.c:890              == Info:   Trying 140.82.121.4:443...
+23:34:12.272800 http.c:890              == Info: Connected to github.com (140.82.121.4) port 443
+23:34:12.274236 http.c:890              == Info: ALPN: curl offers h2,http/1.1
+23:34:12.274422 http.c:890              == Info: TLSv1.3 (OUT), TLS handshake, Client hello (1):
+23:34:12.296494 http.c:890              == Info:  CAfile: /etc/ssl/certs/ca-certificates.crt
+23:34:12.296504 http.c:890              == Info:  CApath: /etc/ssl/certs
+23:34:12.296531 http.c:890              == Info: TLSv1.3 (IN), TLS handshake, Server hello (2):
+23:34:12.296742 http.c:890              == Info: TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+23:34:12.296766 http.c:890              == Info: TLSv1.3 (IN), TLS handshake, Certificate (11):
+23:34:12.298318 http.c:890              == Info: TLSv1.3 (IN), TLS handshake, CERT verify (15):
+23:34:12.298454 http.c:890              == Info: TLSv1.3 (IN), TLS handshake, Finished (20):
+23:34:12.298489 http.c:890              == Info: TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+23:34:12.298522 http.c:890              == Info: TLSv1.3 (OUT), TLS handshake, Finished (20):
+23:34:12.298570 http.c:890              == Info: SSL connection using TLSv1.3 / TLS_AES_128_GCM_SHA256 / X25519 / id-ecPublicKey
+23:34:12.298577 http.c:890              == Info: ALPN: server accepted h2
+23:34:12.298587 http.c:890              == Info: Server certificate:
+23:34:12.298595 http.c:890              == Info:  subject: CN=github.com
+23:34:12.298601 http.c:890              == Info:  start date: Jul  3 00:00:00 2026 GMT
+23:34:12.298606 http.c:890              == Info:  expire date: Sep 30 23:59:59 2026 GMT
+23:34:12.298622 http.c:890              == Info:  subjectAltName: host "github.com" matched cert's "github.com"
+23:34:12.298635 http.c:890              == Info:  issuer: C=GB; O=Sectigo Limited; CN=Sectigo Public Server Authentication CA DV E36
+23:34:12.298639 http.c:890              == Info:  SSL certificate verify ok.
+23:34:12.298647 http.c:890              == Info:   Certificate level 0: Public key type EC/prime256v1 (256/128 Bits/secBits), signed using ecdsa-with-SHA256
+23:34:12.298653 http.c:890              == Info:   Certificate level 1: Public key type EC/prime256v1 (256/128 Bits/secBits), signed using ecdsa-with-SHA384
+23:34:12.298658 http.c:890              == Info:   Certificate level 2: Public key type EC/secp384r1 (384/192 Bits/secBits), signed using ecdsa-with-SHA384
+23:34:12.298734 http.c:890              == Info: using HTTP/2
+23:34:12.298772 http.c:890              == Info: [HTTP/2] [1] OPENED stream for https://github.com/suseto-ui/suseto-v2/info/refs?service=git-upload-pack
+23:34:12.298778 http.c:890              == Info: [HTTP/2] [1] [:method: GET]
+23:34:12.298782 http.c:890              == Info: [HTTP/2] [1] [:scheme: https]
+23:34:12.298786 http.c:890              == Info: [HTTP/2] [1] [:authority: github.com]
+23:34:12.298790 http.c:890              == Info: [HTTP/2] [1] [:path: /suseto-ui/suseto-v2/info/refs?service=git-upload-pack]
+23:34:12.298793 http.c:890              == Info: [HTTP/2] [1] [user-agent: git/2.53.0]
+23:34:12.298797 http.c:890              == Info: [HTTP/2] [1] [accept: */*]
+23:34:12.298801 http.c:890              == Info: [HTTP/2] [1] [accept-encoding: deflate, gzip, br, zstd]
+23:34:12.298805 http.c:890              == Info: [HTTP/2] [1] [accept-language: C, *;q=0.9]
+23:34:12.298808 http.c:890              == Info: [HTTP/2] [1] [pragma: no-cache]
+23:34:12.298812 http.c:890              == Info: [HTTP/2] [1] [git-protocol: version=2]
+23:34:12.298848 http.c:837              => Send header, 0000000238 bytes (0x000000ee)
+23:34:12.298853 http.c:849              => Send header: GET /suseto-ui/suseto-v2/info/refs?service=git-upload-pack HTTP/2
+23:34:12.298856 http.c:849              => Send header: Host: github.com
+23:34:12.298859 http.c:849              => Send header: User-Agent: git/2.53.0
+23:34:12.298862 http.c:849              => Send header: Accept: */*
+23:34:12.298865 http.c:849              => Send header: Accept-Encoding: deflate, gzip, br, zstd
+23:34:12.298868 http.c:849              => Send header: Accept-Language: C, *;q=0.9
+23:34:12.298871 http.c:849              => Send header: Pragma: no-cache
+23:34:12.298873 http.c:849              => Send header: Git-Protocol: version=2
+23:34:12.298876 http.c:849              => Send header:
+23:34:12.307966 http.c:890              == Info: TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+23:34:12.308023 http.c:890              == Info: TLSv1.3 (IN), TLS handshake, Newsession Ticket (4):
+23:34:12.308037 http.c:890              == Info: old SSL session ID is stale, removing
+23:34:12.439213 http.c:837              <= Recv header, 0000000013 bytes (0x0000000d)
+23:34:12.439230 http.c:849              <= Recv header: HTTP/2 200
+23:34:12.439237 http.c:837              <= Recv header, 0000000026 bytes (0x0000001a)
+23:34:12.439240 http.c:849              <= Recv header: server: GitHub-Babel/3.0
+23:34:12.439246 http.c:837              <= Recv header, 0000000059 bytes (0x0000003b)
+23:34:12.439249 http.c:849              <= Recv header: content-type: application/x-git-upload-pack-advertisement
+23:34:12.439252 http.c:837              <= Recv header, 0000000054 bytes (0x00000036)
+23:34:12.439255 http.c:849              <= Recv header: content-security-policy: default-src 'none'; sandbox
+23:34:12.439259 http.c:837              <= Recv header, 0000000040 bytes (0x00000028)
+23:34:12.439261 http.c:849              <= Recv header: expires: Fri, 01 Jan 1980 00:00:00 GMT
+23:34:12.439265 http.c:837              <= Recv header, 0000000018 bytes (0x00000012)
+23:34:12.439267 http.c:849              <= Recv header: pragma: no-cache
+23:34:12.439271 http.c:837              <= Recv header, 0000000053 bytes (0x00000035)
+23:34:12.439274 http.c:849              <= Recv header: cache-control: no-cache, max-age=0, must-revalidate
+23:34:12.439277 http.c:837              <= Recv header, 0000000023 bytes (0x00000017)
+23:34:12.439280 http.c:849              <= Recv header: vary: Accept-Encoding
+23:34:12.439284 http.c:837              <= Recv header, 0000000037 bytes (0x00000025)
+23:34:12.439286 http.c:849              <= Recv header: date: Sat, 01 Aug 2026 23:34:12 GMT
+23:34:12.439290 http.c:837              <= Recv header, 0000000023 bytes (0x00000017)
+23:34:12.439292 http.c:849              <= Recv header: x-frame-options: DENY
+23:34:12.439296 http.c:837              <= Recv header, 0000000073 bytes (0x00000049)
+23:34:12.439299 http.c:849              <= Recv header: strict-transport-security: max-age=31536000; includeSubDomains; preload
+23:34:12.439303 http.c:837              <= Recv header, 0000000061 bytes (0x0000003d)
+23:34:12.439306 http.c:849              <= Recv header: x-github-request-id: 2E01:376948:177A06F1:13FBBA81:6A6E8274
+23:34:12.439310 http.c:837              <= Recv header, 0000000027 bytes (0x0000001b)
+23:34:12.439312 http.c:849              <= Recv header: x-github-edge-region: fra
+23:34:12.439317 http.c:837              <= Recv header, 0000000002 bytes (0x00000002)
+23:34:12.439319 http.c:849              <= Recv header:
+23:34:12.439337 http.c:890              == Info: Connection #0 to host github.com left intact
+23:34:12.439360 pkt-line.c:85           packet:          git< # service=git-upload-pack
+23:34:12.439364 pkt-line.c:85           packet:          git< 0000
+23:34:12.439367 pkt-line.c:85           packet:          git< version 2
+23:34:12.439371 pkt-line.c:85           packet:          git< agent=git/github-c4993d99c5d6-Linux
+23:34:12.439375 pkt-line.c:85           packet:          git< ls-refs=unborn
+23:34:12.439378 pkt-line.c:85           packet:          git< fetch=shallow wait-for-done filter
+23:34:12.439381 pkt-line.c:85           packet:          git< server-option
+23:34:12.439384 pkt-line.c:85           packet:          git< object-format=sha1
+23:34:12.439387 pkt-line.c:85           packet:          git< 0000
+23:34:12.439468 pkt-line.c:85           packet:        fetch< version 2
+23:34:12.439492 pkt-line.c:85           packet:        fetch< agent=git/github-c4993d99c5d6-Linux
+23:34:12.439499 pkt-line.c:85           packet:        fetch< ls-refs=unborn
+23:34:12.439505 pkt-line.c:85           packet:        fetch< fetch=shallow wait-for-done filter
+23:34:12.439511 pkt-line.c:85           packet:        fetch< server-option
+23:34:12.439517 pkt-line.c:85           packet:        fetch< object-format=sha1
+23:34:12.439522 pkt-line.c:85           packet:        fetch< 0000
+23:34:12.439526 pkt-line.c:85           packet:        fetch> command=ls-refs
+23:34:12.439541 pkt-line.c:85           packet:        fetch> agent=git/2.53.0-Linux
+23:34:12.439546 pkt-line.c:85           packet:        fetch> object-format=sha1
+23:34:12.439551 pkt-line.c:85           packet:        fetch> 0001
+23:34:12.439555 pkt-line.c:85           packet:        fetch> peel
+23:34:12.439559 pkt-line.c:85           packet:        fetch> symrefs
+23:34:12.439565 pkt-line.c:85           packet:        fetch> unborn
+23:34:12.439569 pkt-line.c:85           packet:        fetch> ref-prefix refs/tags/
+23:34:12.439574 pkt-line.c:85           packet:        fetch> 0000
+23:34:12.439587 pkt-line.c:85           packet:          git< command=ls-refs
+23:34:12.439594 pkt-line.c:85           packet:          git< agent=git/2.53.0-Linux
+23:34:12.439600 pkt-line.c:85           packet:          git< object-format=sha1
+23:34:12.439605 pkt-line.c:85           packet:          git< 0001
+23:34:12.439611 pkt-line.c:85           packet:          git< peel
+23:34:12.439617 pkt-line.c:85           packet:          git< symrefs
+23:34:12.439623 pkt-line.c:85           packet:          git< unborn
+23:34:12.439628 pkt-line.c:85           packet:          git< ref-prefix refs/tags/
+23:34:12.439633 pkt-line.c:85           packet:          git< 0000
+23:34:12.439679 http.c:890              == Info: Couldn't find host github.com in the .netrc file; using defaults
+23:34:12.439692 http.c:890              == Info: Found bundle for host: 0x6461a1229fc0 [can multiplex]
+23:34:12.439700 http.c:890              == Info: Re-using existing connection with host github.com
+23:34:12.439729 http.c:890              == Info: [HTTP/2] [3] OPENED stream for https://github.com/suseto-ui/suseto-v2/git-upload-pack
+23:34:12.439734 http.c:890              == Info: [HTTP/2] [3] [:method: POST]
+23:34:12.439737 http.c:890              == Info: [HTTP/2] [3] [:scheme: https]
+23:34:12.439740 http.c:890              == Info: [HTTP/2] [3] [:authority: github.com]
+23:34:12.439744 http.c:890              == Info: [HTTP/2] [3] [:path: /suseto-ui/suseto-v2/git-upload-pack]
+23:34:12.439748 http.c:890              == Info: [HTTP/2] [3] [user-agent: git/2.53.0]
+23:34:12.439751 http.c:890              == Info: [HTTP/2] [3] [accept-encoding: deflate, gzip, br, zstd]
+23:34:12.439754 http.c:890              == Info: [HTTP/2] [3] [content-type: application/x-git-upload-pack-request]
+23:34:12.439757 http.c:890              == Info: [HTTP/2] [3] [accept: application/x-git-upload-pack-result]
+23:34:12.439761 http.c:890              == Info: [HTTP/2] [3] [accept-language: C, *;q=0.9]
+23:34:12.439764 http.c:890              == Info: [HTTP/2] [3] [git-protocol: version=2]
+23:34:12.439767 http.c:890              == Info: [HTTP/2] [3] [content-length: 134]
+23:34:12.439812 http.c:837              => Send header, 0000000310 bytes (0x00000136)
+23:34:12.439817 http.c:849              => Send header: POST /suseto-ui/suseto-v2/git-upload-pack HTTP/2
+23:34:12.439820 http.c:849              => Send header: Host: github.com
+23:34:12.439823 http.c:849              => Send header: User-Agent: git/2.53.0
+23:34:12.439826 http.c:849              => Send header: Accept-Encoding: deflate, gzip, br, zstd
+23:34:12.439829 http.c:849              => Send header: Content-Type: application/x-git-upload-pack-request
+23:34:12.439832 http.c:849              => Send header: Accept: application/x-git-upload-pack-result
+23:34:12.439835 http.c:849              => Send header: Accept-Language: C, *;q=0.9
+23:34:12.439837 http.c:849              => Send header: Git-Protocol: version=2
+23:34:12.439840 http.c:849              => Send header: Content-Length: 134
+23:34:12.439843 http.c:849              => Send header:
+23:34:12.581400 http.c:837              <= Recv header, 0000000013 bytes (0x0000000d)
+23:34:12.581421 http.c:849              <= Recv header: HTTP/2 200
+23:34:12.581429 http.c:837              <= Recv header, 0000000026 bytes (0x0000001a)
+23:34:12.581432 http.c:849              <= Recv header: server: GitHub-Babel/3.0
+23:34:12.581436 http.c:837              <= Recv header, 0000000052 bytes (0x00000034)
+23:34:12.581439 http.c:849              <= Recv header: content-type: application/x-git-upload-pack-result
+23:34:12.581443 http.c:837              <= Recv header, 0000000054 bytes (0x00000036)
+23:34:12.581446 http.c:849              <= Recv header: content-security-policy: default-src 'none'; sandbox
+23:34:12.581449 http.c:837              <= Recv header, 0000000040 bytes (0x00000028)
+23:34:12.581452 http.c:849              <= Recv header: expires: Fri, 01 Jan 1980 00:00:00 GMT
+23:34:12.581455 http.c:837              <= Recv header, 0000000018 bytes (0x00000012)
+23:34:12.581458 http.c:849              <= Recv header: pragma: no-cache
+23:34:12.581461 http.c:837              <= Recv header, 0000000053 bytes (0x00000035)
+23:34:12.581464 http.c:849              <= Recv header: cache-control: no-cache, max-age=0, must-revalidate
+23:34:12.581467 http.c:837              <= Recv header, 0000000023 bytes (0x00000017)
+23:34:12.581475 http.c:849              <= Recv header: vary: Accept-Encoding
+23:34:12.581478 http.c:837              <= Recv header, 0000000037 bytes (0x00000025)
+23:34:12.581481 http.c:849              <= Recv header: date: Sat, 01 Aug 2026 23:34:12 GMT
+23:34:12.581484 http.c:837              <= Recv header, 0000000023 bytes (0x00000017)
+23:34:12.581487 http.c:849              <= Recv header: x-frame-options: DENY
+23:34:12.581490 http.c:837              <= Recv header, 0000000073 bytes (0x00000049)
+23:34:12.581493 http.c:849              <= Recv header: strict-transport-security: max-age=31536000; includeSubDomains; preload
+23:34:12.581496 http.c:837              <= Recv header, 0000000061 bytes (0x0000003d)
+23:34:12.581499 http.c:849              <= Recv header: x-github-request-id: 2E01:376948:177A07EE:13FBBB54:6A6E8274
+23:34:12.581503 http.c:837              <= Recv header, 0000000027 bytes (0x0000001b)
+23:34:12.581506 http.c:849              <= Recv header: x-github-edge-region: fra
+23:34:12.581509 http.c:837              <= Recv header, 0000000002 bytes (0x00000002)
+23:34:12.581512 http.c:849              <= Recv header:
+23:34:12.581537 http.c:890              == Info: Connection #0 to host github.com left intact
+23:34:12.581549 pkt-line.c:85           packet:          git> 0002
+23:34:12.581598 pkt-line.c:85           packet:        fetch< 0000
+23:34:12.581611 pkt-line.c:85           packet:        fetch< 0002
+23:34:12.581901 run-command.c:673       trace: run_command: git rev-list --objects --stdin --not --exclude-hidden=fetch --all --quiet --alternate-refs
+23:34:12.581930 run-command.c:765       trace: start_command: /usr/local/libexec/git-core/git rev-list --objects --stdin --not --exclude-hidden=fetch --all --quiet --alternate-refs
+23:34:12.587229 pkt-line.c:85           packet:        fetch> command=fetch
+23:34:12.587241 pkt-line.c:85           packet:        fetch> agent=git/2.53.0-Linux
+23:34:12.587245 pkt-line.c:85           packet:        fetch> object-format=sha1
+23:34:12.587249 pkt-line.c:85           packet:        fetch> 0001
+23:34:12.587252 pkt-line.c:85           packet:        fetch> thin-pack
+23:34:12.587255 pkt-line.c:85           packet:        fetch> no-progress
+23:34:12.587258 pkt-line.c:85           packet:        fetch> ofs-delta
+23:34:12.587264 pkt-line.c:85           packet:        fetch> want 34f09db79c5cd4dd62a0c9f6f999d03f94089fe0
+23:34:12.587268 pkt-line.c:85           packet:        fetch> have 772639a77bcdcb409f636a1ba10d6833f9560674
+23:34:12.587321 pkt-line.c:85           packet:        fetch> have bc4e507d8f2f57396ab462b393827b62454c7023
+23:34:12.587365 pkt-line.c:85           packet:        fetch> have 6b6983be1adaf787ae942f456fe224efed303866
+23:34:12.587370 pkt-line.c:85           packet:        fetch> have 595c871e63eee865256ee557a19d935416b39b10
+23:34:12.587414 pkt-line.c:85           packet:        fetch> have 689eb9ca4b204428de933573a709fd410eca7525
+23:34:12.587463 pkt-line.c:85           packet:        fetch> have 4fe2ec23a79d109067597c324e882e035129e73b
+23:34:12.587468 pkt-line.c:85           packet:        fetch> have b17da1eaf0fd4a0ef20cbff765659591e3ac39d4
+23:34:12.587471 pkt-line.c:85           packet:        fetch> 0000
+23:34:12.587554 pkt-line.c:85           packet:          git< command=fetch
+23:34:12.587565 pkt-line.c:85           packet:          git< agent=git/2.53.0-Linux
+23:34:12.587571 pkt-line.c:85           packet:          git< object-format=sha1
+23:34:12.587576 pkt-line.c:85           packet:          git< 0001
+23:34:12.587583 pkt-line.c:85           packet:          git< thin-pack
+23:34:12.587589 pkt-line.c:85           packet:          git< no-progress
+23:34:12.587595 pkt-line.c:85           packet:          git< ofs-delta
+23:34:12.587601 pkt-line.c:85           packet:          git< want 34f09db79c5cd4dd62a0c9f6f999d03f94089fe0
+23:34:12.587607 pkt-line.c:85           packet:          git< have 772639a77bcdcb409f636a1ba10d6833f9560674
+23:34:12.587614 pkt-line.c:85           packet:          git< have bc4e507d8f2f57396ab462b393827b62454c7023
+23:34:12.587620 pkt-line.c:85           packet:          git< have 6b6983be1adaf787ae942f456fe224efed303866
+23:34:12.587626 pkt-line.c:85           packet:          git< have 595c871e63eee865256ee557a19d935416b39b10
+23:34:12.587632 pkt-line.c:85           packet:          git< have 689eb9ca4b204428de933573a709fd410eca7525
+23:34:12.587638 pkt-line.c:85           packet:          git< have 4fe2ec23a79d109067597c324e882e035129e73b
+23:34:12.587644 pkt-line.c:85           packet:          git< have b17da1eaf0fd4a0ef20cbff765659591e3ac39d4
+23:34:12.587648 pkt-line.c:85           packet:          git< 0000
+23:34:12.587700 http.c:890              == Info: Couldn't find host github.com in the .netrc file; using defaults
+23:34:12.587709 http.c:890              == Info: Found bundle for host: 0x6461a1229fc0 [can multiplex]
+23:34:12.587716 http.c:890              == Info: Re-using existing connection with host github.com
+23:34:12.587747 http.c:890              == Info: [HTTP/2] [5] OPENED stream for https://github.com/suseto-ui/suseto-v2/git-upload-pack
+23:34:12.587752 http.c:890              == Info: [HTTP/2] [5] [:method: POST]
+23:34:12.587756 http.c:890              == Info: [HTTP/2] [5] [:scheme: https]
+23:34:12.587759 http.c:890              == Info: [HTTP/2] [5] [:authority: github.com]
+23:34:12.587763 http.c:890              == Info: [HTTP/2] [5] [:path: /suseto-ui/suseto-v2/git-upload-pack]
+23:34:12.587766 http.c:890              == Info: [HTTP/2] [5] [user-agent: git/2.53.0]
+23:34:12.587770 http.c:890              == Info: [HTTP/2] [5] [accept-encoding: deflate, gzip, br, zstd]
+23:34:12.587774 http.c:890              == Info: [HTTP/2] [5] [content-type: application/x-git-upload-pack-request]
+23:34:12.587778 http.c:890              == Info: [HTTP/2] [5] [accept: application/x-git-upload-pack-result]
+23:34:12.587781 http.c:890              == Info: [HTTP/2] [5] [accept-language: C, *;q=0.9]
+23:34:12.587784 http.c:890              == Info: [HTTP/2] [5] [git-protocol: version=2]
+23:34:12.587788 http.c:890              == Info: [HTTP/2] [5] [content-length: 514]
+23:34:12.587842 http.c:837              => Send header, 0000000310 bytes (0x00000136)
+23:34:12.587848 http.c:849              => Send header: POST /suseto-ui/suseto-v2/git-upload-pack HTTP/2
+23:34:12.587851 http.c:849              => Send header: Host: github.com
+23:34:12.587854 http.c:849              => Send header: User-Agent: git/2.53.0
+23:34:12.587857 http.c:849              => Send header: Accept-Encoding: deflate, gzip, br, zstd
+23:34:12.587860 http.c:849              => Send header: Content-Type: application/x-git-upload-pack-request
+23:34:12.587863 http.c:849              => Send header: Accept: application/x-git-upload-pack-result
+23:34:12.587866 http.c:849              => Send header: Accept-Language: C, *;q=0.9
+23:34:12.587868 http.c:849              => Send header: Git-Protocol: version=2
+23:34:12.587871 http.c:849              => Send header: Content-Length: 514
+23:34:12.587874 http.c:849              => Send header:
+23:34:12.742110 http.c:837              <= Recv header, 0000000013 bytes (0x0000000d)
+23:34:12.742123 http.c:849              <= Recv header: HTTP/2 200
+23:34:12.742130 http.c:837              <= Recv header, 0000000026 bytes (0x0000001a)
+23:34:12.742132 http.c:849              <= Recv header: server: GitHub-Babel/3.0
+23:34:12.742136 http.c:837              <= Recv header, 0000000052 bytes (0x00000034)
+23:34:12.742140 http.c:849              <= Recv header: content-type: application/x-git-upload-pack-result
+23:34:12.742143 http.c:837              <= Recv header, 0000000054 bytes (0x00000036)
+23:34:12.742145 http.c:849              <= Recv header: content-security-policy: default-src 'none'; sandbox
+23:34:12.742148 http.c:837              <= Recv header, 0000000040 bytes (0x00000028)
+23:34:12.742150 http.c:849              <= Recv header: expires: Fri, 01 Jan 1980 00:00:00 GMT
+23:34:12.742153 http.c:837              <= Recv header, 0000000018 bytes (0x00000012)
+23:34:12.742157 http.c:849              <= Recv header: pragma: no-cache
+23:34:12.742163 http.c:837              <= Recv header, 0000000053 bytes (0x00000035)
+23:34:12.742166 http.c:849              <= Recv header: cache-control: no-cache, max-age=0, must-revalidate
+23:34:12.742171 http.c:837              <= Recv header, 0000000023 bytes (0x00000017)
+23:34:12.742175 http.c:849              <= Recv header: vary: Accept-Encoding
+23:34:12.742180 http.c:837              <= Recv header, 0000000037 bytes (0x00000025)
+23:34:12.742184 http.c:849              <= Recv header: date: Sat, 01 Aug 2026 23:34:12 GMT
+23:34:12.742188 http.c:837              <= Recv header, 0000000023 bytes (0x00000017)
+23:34:12.742192 http.c:849              <= Recv header: x-frame-options: DENY
+23:34:12.742196 http.c:837              <= Recv header, 0000000073 bytes (0x00000049)
+23:34:12.742199 http.c:849              <= Recv header: strict-transport-security: max-age=31536000; includeSubDomains; preload
+23:34:12.742204 http.c:837              <= Recv header, 0000000061 bytes (0x0000003d)
+23:34:12.742208 http.c:849              <= Recv header: x-github-request-id: 2E01:376948:177A08FF:13FBBC1A:6A6E8274
+23:34:12.742212 http.c:837              <= Recv header, 0000000027 bytes (0x0000001b)
+23:34:12.742216 http.c:849              <= Recv header: x-github-edge-region: fra
+23:34:12.742221 http.c:837              <= Recv header, 0000000002 bytes (0x00000002)
+23:34:12.742224 http.c:849              <= Recv header:
+23:34:12.742358 pkt-line.c:85           packet:        fetch< acknowledgments
+23:34:12.742379 pkt-line.c:85           packet:        fetch< ACK 772639a77bcdcb409f636a1ba10d6833f9560674
+23:34:12.742391 pkt-line.c:85           packet:        fetch< ACK 595c871e63eee865256ee557a19d935416b39b10
+23:34:12.742400 pkt-line.c:85           packet:        fetch< ready
+23:34:12.742406 pkt-line.c:85           packet:        fetch< 0001
+23:34:12.742414 pkt-line.c:85           packet:        fetch< packfile
+23:34:12.742669 pkt-line.c:85           packet:     sideband< PACK ...
+23:34:12.742726 run-command.c:673       trace: run_command: git unpack-objects -q --pack_header=2,36
+23:34:12.742751 run-command.c:765       trace: start_command: /usr/local/libexec/git-core/git unpack-objects -q --pack_header=2,36
+23:34:12.744910 git.c:502               trace: built-in: git unpack-objects -q --pack_header=2,36
+23:34:12.751331 http.c:890              == Info: Connection #0 to host github.com left intact
+23:34:12.751352 pkt-line.c:85           packet:          git> 0002
+23:34:12.751351 pkt-line.c:85           packet:     sideband< 0000
+23:34:12.751745 pkt-line.c:85           packet:        fetch< 0002
+23:34:12.754620 run-command.c:673       trace: run_command: git rev-list --objects --stdin --not --exclude-hidden=fetch --all --quiet --alternate-refs
+23:34:12.754642 run-command.c:765       trace: start_command: /usr/local/libexec/git-core/git rev-list --objects --stdin --not --exclude-hidden=fetch --all --quiet --alternate-refs
+23:34:12.756415 git.c:502               trace: built-in: git rev-list --objects --stdin --not --exclude-hidden=fetch --all --quiet --alternate-refs
+fatal: bad object refs/heads/audit/refactor-v1
+error: https://github.com/suseto-ui/suseto-v2 did not send all necessary objects
+23:34:12.757551 run-command.c:673       trace: run_command: git maintenance run --auto --no-quiet --detach
+23:34:12.757591 run-command.c:765       trace: start_command: /usr/local/libexec/git-core/git maintenance run --auto --no-quiet --detach
+23:34:12.759680 git.c:502               trace: built-in: git maintenance run --auto --no-quiet --detach
