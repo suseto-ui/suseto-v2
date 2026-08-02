@@ -184,6 +184,8 @@ def api_expected_audit():
  return jsonify({"found":sorted(exp & sc),"missing":sorted(exp - sc),"unexpected":sorted(sc - exp)})
 @app.post("/api/v1/debug/install_pip")
 def api_debug_install_pip():
+    if not require_role("admin"):
+        return jsonify({"error": "Vyžadována role admin."}), 403
     import subprocess, sys
     try:
         # Install packages using the exact python executable running the web app
