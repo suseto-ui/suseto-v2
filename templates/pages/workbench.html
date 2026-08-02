@@ -58,4 +58,74 @@ textarea,.json-out input{width:100%}
 @media(max-width:768px){.wb-grid{grid-template-columns:1fr}}
 </style>
 {% endblock %}
-{% block extra_scripts %}<script src="{{ url_for('static', filename='js/workbench.js') }}"></script>{% endblock %}
+{% block extra_scripts %}
+<script>
+/* workbench.js inline — fallback if static file fails */
+(function(){
+const $ = id => document.getElementById(id);
+async function postJSON(url, data) {
+  try {
+    const resp = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+    return await resp.json();
+  } catch(e) { return {ok:false, error: String(e)}; }
+}
+function showJSON(el, data) {
+  if (el) el.textContent = JSON.stringify(data, null, 2);
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const rawEl = $('wb_raw');
+  const analysisEl = $('wb_analysis');
+  const reverseEl = $('wb_reverse');
+  const reportEl = $('wb_report');
+
+  $('wb_ingest')?.addEventListener('click', async () => {
+    const raw = (rawEl?.value || '').trim();
+    if (!raw) { showJSON(analysisEl, {error:'Vlož payload do textového pole.'}); return; }
+    analysisEl.textContent = 'Analyzuji...';
+    const res = await postJSON('/api/v1/workbench/ingest', {raw});
+    showJSON(analysisEl, res);
+    const badge = $('wb_type_badge');
+    if (badge && res.identifier) {
+      badge.textContent = '🔍 ' + res.identifier.type;
+      badge.style.display = 'inline-block';
+    }
+  });
+
+  $('wb_run_analysis')?.addEventListener('click', async () => {
+    const raw = (rawEl?.value || '').trim();
+    if (!raw) { showJSON(analysisEl, {error:'Vlož payload.'}); return; }
+    analysisEl.textContent = 'Analyzuji pipeline...';
+    const ingest = await postJSON('/api/v1/workbench/ingest', {raw});
+    const res = await postJSON('/api/v1/workbench/analyze', {identifier: ingest.identifier || {raw}});
+    showJSON(analysisEl, res);
+    const risk = $('wb_risk');
+    if (risk && res.analysis) {
+      const score = res.analysis.risk_score || 0;
+      risk.style.display = 'block';
+      risk.textContent = 'Risk score: ' + score + (res.analysis.notes?.length ? ' — ' + res.analysis.notes.join(', ') : '');
+      risk.style.background = score >= 25 ? '#5d1f1f' : score >= 10 ? '#4a3f00' : '#1f3d1f';
+      risk.style.color = score >= 25 ? '#ff6b6b' : score >= 10 ? '#ffd54f' : '#69f0ae';
+    }
+  });
+
+  $('wb_run_reverse')?.addEventListener('click', async () => {
+    const raw = (rawEl?.value || '').trim();
+    if (!raw) { showJSON(reverseEl, {error:'Vlož payload.'}); return; }
+    reverseEl.textContent = 'RE analýza...';
+    const res = await postJSON('/api/v1/workbench/reverse', {raw});
+    showJSON(reverseEl, res);
+  });
+
+  $('wb_run_tests')?.addEventListener('click', async () => {
+    const target = ($('wb_target')?.value || '').trim();
+    const mode = $('wb_mode')?.value || 'url';
+    const runs = parseInt($('wb_runs')?.value || '3', 10);
+    if (!target) { showJSON(reportEl, {error:'Vlož cílový endpoint.'}); return; }
+    reportEl.textContent = 'Probíhají testy (' + runs + 'x ' + mode + ')...';
+    const res = await postJSON('/api/v1/workbench/test-run', {target, profile:{mode,runs}});
+    showJSON(reportEl, res);
+  });
+});
+})();
+</script>
+{% endblock %}
