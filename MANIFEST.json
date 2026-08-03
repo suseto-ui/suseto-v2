@@ -1,0 +1,31 @@
+{
+  "root_files": [
+    "app.py",
+    "requirements.txt"
+  ],
+  "services": [
+    "services/config.py"
+  ],
+  "routes": [
+    "routes/__init__.py",
+    "routes/helpers.py",
+    "routes/core_routes.py"
+  ],
+  "templates": [
+    "templates/pages/label_print.html"
+  ],
+  "static": [
+    "static/js/app.js"
+  ],
+  "ci": [
+    ".github/workflows/ci.yml"
+  ],
+  "docs": [
+    "docs/bulk-commit-plan.md",
+    "docs/hierarchicky-plan.md",
+    "docs/github-implementation-pack.md"
+  ],
+  "tests": [
+    "tests/test_smoke.py"
+  ]
+}

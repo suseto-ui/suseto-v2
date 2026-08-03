@@ -1,5 +1,3 @@
-flask
-qrcode[pil]
-python-barcode[images]
-Pillow
-requests
+Flask
+pytest
+ruff
