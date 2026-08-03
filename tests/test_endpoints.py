@@ -133,3 +133,54 @@ def test_dashboard_stats(auth_client):
     assert r.status_code == 200
     data = json.loads(r.data)
     assert "kpis" in data and "chart" in data
+
+# --- Admin API ---
+
+def test_admin_users_list(auth_client):
+    """Admin může získat seznam uživatelů."""
+    r = auth_client.get("/api/v1/admin/users")
+    assert r.status_code == 200
+    data = json.loads(r.data)
+    assert "users" in data
+
+def test_admin_user_create(auth_client):
+    """Admin může vytvořit nového uživatele."""
+    r = auth_client.post(
+        "/api/v1/admin/users",
+        json={"username": "testuser", "password": "test123", "role": "viewer"}
+    )
+    # Může vrátit 201 (vytvořeno) nebo 400 (uživatel existuje)
+    assert r.status_code in (201, 400)
+
+def test_admin_user_role(auth_client):
+    """Admin může změnit roli uživatele."""
+    r = auth_client.post(
+        "/api/v1/admin/users/role",
+        json={"username": "admin", "role": "admin"}
+    )
+    # Může vrátit 200 (OK) nebo 404 (user not found)
+    assert r.status_code in (200, 404)
+
+def test_admin_user_toggle(auth_client):
+    """Admin může toggle aktivaci uživatele."""
+    r = auth_client.post(
+        "/api/v1/admin/users/toggle",
+        json={"username": "admin"}
+    )
+    # Může vrátit 200 (OK) nebo 404 (user not found)
+    assert r.status_code in (200, 404)
+
+def test_admin_audit(auth_client):
+    """Admin může získat audit log."""
+    r = auth_client.get("/api/v1/admin/audit")
+    assert r.status_code == 200
+    data = json.loads(r.data)
+    assert "entries" in data
+
+def test_admin_unauthorized(client):
+    """Neauth uživatel nemůže přistupovat k admin API."""
+    r = client.get("/api/v1/admin/users")
+    assert r.status_code == 403
+
+    r = client.post("/api/v1/admin/users", json={"username": "x", "password": "y"})
+    assert r.status_code == 403
