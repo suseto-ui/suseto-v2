@@ -1,0 +1,29 @@
+{
+  "profiles": [
+    {
+      "id": "47a0d5d8c1",
+      "name": "gsdga",
+      "kind": "qr",
+      "format": "png",
+      "prefix": "",
+      "created_at": "2026-07-28T04:43:33.480830+00:00"
+    },
+    {
+      "id": "2f8f9af43b",
+      "name": "gweg",
+      "kind": "qr",
+      "format": "png",
+      "prefix": "wegg",
+      "created_at": "2026-07-28T04:43:39.521331+00:00"
+    },
+    {
+      "id": "21addf6dea",
+      "name": "regal",
+      "kind": "qr",
+      "format": "png",
+      "prefix": "stitek",
+      "created_at": "2026-07-28T04:56:59.248820+00:00"
+    }
+  ],
+  "items": []
+}

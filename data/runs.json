@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "id": "4b542af23a",
+    "created_at": "2026-08-03T01:54:30.433120+00:00",
+    "kind": "heuristic",
+    "input": {
+      "seed": "demo",
+      "strategy": "best_first",
+      "budget": 8,
+      "weights": {
+        "length": 0.35,
+        "entropy": 0.3,
+        "prefix": 0.2,
+        "wrapper": 0.15
+      }
+    },
+    "summary": {
+      "top_score": 0.708,
+      "count": 8
+    }
+  }
+]
