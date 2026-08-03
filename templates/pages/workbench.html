@@ -1,149 +1,21 @@
 {% extends "layout.html" %}
-{% block title %}Workbench – suseto{% endblock %}
+{% block title %}Workbench – Suseto{% endblock %}
+
 {% block content %}
 <div class="container" style="max-width:980px;margin:0 auto;padding:2rem 1rem 4rem;">
+  <h1>Workbench</h1>
+  <p>Interaktivní pracovní plocha pro analýzu, dekódování a testování vstupů.</p>
 
-  <div style="margin-bottom:2rem;">
-    <h1 style="font-size:1.7rem;font-weight:700;margin-bottom:.25rem;">🔬 Data &amp; Identifier Analysis Workbench</h1>
-    <p style="color:var(--color-text-muted,#666);font-size:.95rem;">Univerzální analyzátor a reverzní inženýr identifikátorů — QR, EAN, HEX, URL, JWT, base64, IMEI, UUID a více.</p>
-  </div>
-
-  <!-- ── STEP 1: INGEST ── -->
-  <section class="wb-card" style="margin-bottom:1.5rem;">
-    <h2 class="wb-section-title">① Ingest &amp; Normalizace</h2>
-    <p class="wb-hint">Vlož libovolný identifikátor – QR payload, EAN čárový kód, URL, JWT token, HEX string, IMEI, UUID, base64 nebo JSON.</p>
-    <textarea id="wb_raw" rows="4" placeholder="Vlož identifikátor sem…" style="width:100%;font-family:monospace;font-size:.9rem;padding:.75rem;border:1px solid var(--color-border,#ccc);border-radius:6px;resize:vertical;"></textarea>
-    <div style="margin-top:.75rem;display:flex;gap:.5rem;flex-wrap:wrap;">
-      <button id="wb_btn_ingest" class="btn btn-primary">Normalizovat &amp; typovat</button>
-      <button id="wb_btn_analyze" class="btn btn-secondary">▶ Analyzovat pipeline</button>
-      <button id="wb_btn_reverse" class="btn btn-secondary">🔍 Reverzní inženýrství</button>
-      <button id="wb_btn_clear" class="btn btn-ghost" style="margin-left:auto;">Vymazat</button>
-    </div>
+  <section class="card">
+    <button id="wb_btn_ingest">Normalizovat a typovat</button>
+    <button id="wb_btn_analyze">Spustit analýzu</button>
+    <button id="wb_btn_reverse">Spustit RE analýzu</button>
+    <button id="wb_btn_clear">Vymazat výstup</button>
+    <button id="wb_btn_test">Spustit testy</button>
   </section>
-
-  <!-- ── STEP 2: RESULTS ── -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem;">
-
-    <section class="wb-card">
-      <h2 class="wb-section-title">② Identifikátor</h2>
-      <div id="wb_type_badge" style="margin-bottom:.5rem;"></div>
-      <pre id="wb_identifier" class="wb-pre">–</pre>
-    </section>
-
-    <section class="wb-card">
-      <h2 class="wb-section-title">③ Analýza rizik</h2>
-      <div id="wb_risk_bar" style="margin-bottom:.75rem;"></div>
-      <pre id="wb_analysis" class="wb-pre">–</pre>
-    </section>
-
-  </div>
-
-  <!-- ── STEP 3: REVERSE ── -->
-  <section class="wb-card" style="margin-bottom:1.5rem;">
-    <h2 class="wb-section-title">④ Reverzní inženýrství</h2>
-    <p class="wb-hint">Automaticky zkusí base64, hex→ASCII, zlib, URL-decode a odhadne Shannon entropii.</p>
-    <div id="wb_entropy_bar" style="margin-bottom:.75rem;"></div>
-    <pre id="wb_reverse" class="wb-pre">–</pre>
-  </section>
-
-  <!-- ── STEP 4: TEST HARNESS ── -->
-  <section class="wb-card">
-    <h2 class="wb-section-title">⑤ Test Harness – automatické testování endpointu</h2>
-    <p class="wb-hint">Pošle syntetické payloady na zvolený endpoint a nasbírá odpovědi. Vhodné pro testování vlastního AIDC API.</p>
-    <div style="display:flex;gap:.75rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:.75rem;">
-      <div style="flex:2;min-width:220px;">
-        <label class="wb-label">Cílový endpoint (URL)</label>
-        <input id="wb_target" type="url" placeholder="https://…/api/v1/aidc/analyze-scan"
-          style="width:100%;padding:.55rem .75rem;border:1px solid var(--color-border,#ccc);border-radius:6px;font-size:.9rem;">
-      </div>
-      <div style="min-width:120px;">
-        <label class="wb-label">Typ payloadu</label>
-        <select id="wb_mode"
-          style="width:100%;padding:.55rem .75rem;border:1px solid var(--color-border,#ccc);border-radius:6px;font-size:.9rem;">
-          <option value="url">URL fuzzing</option>
-          <option value="hex">HEX fuzzing</option>
-          <option value="ean13">EAN-13</option>
-          <option value="base64">Base64</option>
-        </select>
-      </div>
-      <div style="min-width:80px;">
-        <label class="wb-label">Počet testů</label>
-        <input id="wb_runs" type="number" value="5" min="1" max="20"
-          style="width:100%;padding:.55rem .75rem;border:1px solid var(--color-border,#ccc);border-radius:6px;font-size:.9rem;">
-      </div>
-      <button id="wb_btn_test" class="btn btn-primary">Spustit testy</button>
-    </div>
-    <div id="wb_test_summary" style="margin-bottom:.5rem;"></div>
-    <pre id="wb_report" class="wb-pre">–</pre>
-  </section>
-
 </div>
-
-<style>
-.wb-card {
-  background: var(--color-surface, #fff);
-  border: 1px solid var(--color-border, #e0e0e0);
-  border-radius: 8px;
-  padding: 1.25rem 1.25rem 1rem;
-}
-.wb-section-title {
-  font-size: 1rem;
-  font-weight: 700;
-  margin-bottom: .5rem;
-  color: var(--color-text, #111);
-}
-.wb-hint {
-  font-size: .85rem;
-  color: var(--color-text-muted, #666);
-  margin-bottom: .75rem;
-}
-.wb-label {
-  display: block;
-  font-size: .8rem;
-  font-weight: 600;
-  margin-bottom: .25rem;
-  color: var(--color-text-muted, #555);
-}
-.wb-pre {
-  font-family: 'Fira Mono', 'Consolas', monospace;
-  font-size: .8rem;
-  background: var(--color-surface-offset, #f5f5f5);
-  border-radius: 5px;
-  padding: .75rem;
-  white-space: pre-wrap;
-  word-break: break-all;
-  max-height: 340px;
-  overflow-y: auto;
-  margin: 0;
-}
-.wb-badge {
-  display: inline-block;
-  padding: .2rem .7rem;
-  border-radius: 99px;
-  font-size: .78rem;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-}
-.wb-risk-bar {
-  height: 8px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #22c55e 0%, #facc15 50%, #ef4444 100%);
-  position: relative;
-  margin-bottom: .25rem;
-}
-.wb-risk-cursor {
-  position: absolute;
-  top: -4px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #1e293b;
-  border: 2px solid #fff;
-  transform: translateX(-50%);
-}
-</style>
 {% endblock %}
+
 {% block extra_scripts %}
 <script src="{{ url_for('static', filename='js/workbench.js') }}"></script>
 {% endblock %}
