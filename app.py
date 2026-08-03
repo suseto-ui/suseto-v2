@@ -35,7 +35,4 @@ def not_found(e):
 
 @app.errorhandler(500)
 def server_error(e):
-    return render_template("pages/500.html"), 500
-
-if __name__ == "__main__":
-    app.run(debug=True)
+    return render_template("page
