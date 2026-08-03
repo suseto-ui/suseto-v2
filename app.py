@@ -32,14 +32,18 @@ from services.decode_service import chain as decode_chain, pattern_library
 from services.location_service import list_locations, add_location
 from services.timeline_service import add as timeline_add, list_for as timeline_list
 from services.workbench_routes import register_workbench
-app=Flask(__name__,template_folder="templates",static_folder="static"); app.config["TEMPLATES_AUTO_RELOAD"]=True; app.secret_key=CONFIG["SECRET_KEY"]; application=app
+from routes.debug_routes import debug_bp
+from routes.helpers import current_user, require_role, body
+
+app = Flask(__name__, template_folder="templates", static_folder="static")
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.secret_key = CONFIG["SECRET_KEY"]
+application = app
+
 from services.error_logger import setup_logging
 setup_logging(app)
 register_workbench(app)
-def current_user(): return {"username":session.get("username"),"role":session.get("role")} if session.get("username") else None
-def require_role(*roles):
-    u=current_user()
-    return u and u.get("role") in roles
+app.register_blueprint(debug_bp)
 
 @app.route("/")
 def home(): return render_template("pages/rozcestnik.html")
@@ -99,7 +103,6 @@ def auth_lab(): return render_template("pages/auth_lab.html")
 def runs(): return render_template("pages/runs.html")
 @app.route("/health")
 def health(): return jsonify({"status":"ok","modules":["navigator","generator","state_lab","auth_lab","run_history","aidc_studio","aidc_batch","registry","label_profiles","scanner_lab","transform_lab","dashboard","inventory","insight_lab","label_designer","backup_center"],"mode":"sandbox-only"})
-def body(): return request.get_json(silent=True) or {}
 @app.get("/api/v1/auth/me")
 def auth_me(): return jsonify({"user":current_user()})
 @app.post("/api/v1/auth/login")
@@ -191,26 +194,62 @@ def api_debug_install_pip():
         return jsonify({"error": "Vyžadována role admin."}), 403
     import subprocess, sys
     try:
-        # Install packages using the exact python executable running the web app
         result = subprocess.run(
             ["python3", "-m", "pip", "install", "--user", "qrcode[pil]", "python-barcode[images]", "Pillow"],
             capture_output=True,
             text=True
         )
         output = result.stdout + "\n" + result.stderr
-
-        # Try to dynamically reload the site-packages if possible
         import site
         from pathlib import Path
         user_site = Path.home() / '.local' / 'lib' / f'python{sys.version_info.major}.{sys.version_info.minor}' / 'site-packages'
         if user_site.exists():
             site.addsitedir(str(user_site))
-
         return jsonify({"ok": True, "log": output})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
-
-
+@app.get("/api/v1/debug/env")
+def api_debug_env():
+    import sys, time
+    from pathlib import Path
+    import flask
+    if not require_role("admin"):
+        return jsonify({"error":"Vyžadována role admin."}),403
+    res = {"python": sys.version.split(" ")[0], "flask": flask.__version__}
+    data_dir = Path(app.root_path) / 'data'
+    try:
+        data_dir.mkdir(exist_ok=True)
+        test_file = data_dir / '.write_test'
+        test_file.write_text('test')
+        test_file.unlink()
+        res['data_write'] = "OK"
+    except Exception as e:
+        res['data_write'] = f"FAIL: {str(e)}"
+    files_to_check = ['app.py','static/js/decode_lab.js','static/js/menu-delay.js','static/js/debug.js','templates/pages/decode_lab.html']
+    res['files'] = {}
+    for f in files_to_check:
+        p = Path(app.root_path) / f
+        if p.exists():
+            mtime = p.stat().st_mtime
+            res['files'][f] = time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(mtime))
+        else:
+            res['files'][f] = "MISSING"
+    deps = {}
+    try:
+        import qrcode; deps['qrcode'] = getattr(qrcode, '__version__', 'OK (no __version__)')
+    except Exception as e:
+        deps['qrcode'] = f"ERROR: {str(e)}"
+    try:
+        import barcode; deps['barcode'] = getattr(barcode, 'version', getattr(barcode, '__version__', 'OK (no version attr)'))
+    except Exception as e:
+        deps['barcode'] = f"ERROR: {str(e)}"
+    try:
+        import PIL; deps['Pillow'] = PIL.__version__
+    except Exception as e:
+        deps['Pillow'] = f"ERROR: {str(e)}"
+    res['deps'] = deps
+    res['sys_path'] = sys.path
+    return jsonify(res)
 @app.get("/api/v1/dashboard/stats")
 def api_dashboard_stats():
     if not current_user(): return jsonify({"error":"Přihlas se."}),401
@@ -218,7 +257,6 @@ def api_dashboard_stats():
     locs = len(list_locations())
     timeline = timeline_list(None)
     audit = audit_list()
-
     import datetime
     from collections import defaultdict
     today = datetime.datetime.now(datetime.timezone.utc).date()
@@ -231,18 +269,11 @@ def api_dashboard_stats():
                 if 0 <= days_ago < 7:
                     scans_by_date[d.isoformat()] += 1
             except: pass
-
     chart_data = []
     for i in range(6, -1, -1):
         d = (today - datetime.timedelta(days=i)).isoformat()
         chart_data.append({"date": d, "count": scans_by_date.get(d, 0)})
-
-    return jsonify({
-        "kpis": {"users": users, "locations": locs, "timeline_events": len(timeline), "audit_events": len(audit)},
-        "chart": chart_data,
-        "recent": timeline[:10]
-    })
-
+    return jsonify({"kpis":{"users":users,"locations":locs,"timeline_events":len(timeline),"audit_events":len(audit)},"chart":chart_data,"recent":timeline[:10]})
 @app.get("/api/v1/timeline/export")
 def api_timeline_export():
     if not current_user(): return jsonify({"error":"Přihlas se."}),401
@@ -252,7 +283,6 @@ def api_timeline_export():
     cw.writerow(['at', 'action', 'actor', 'asset_key', 'detail'])
     for r in timeline_list(None): cw.writerow([r.get('at'), r.get('action'), r.get('actor'), r.get('asset_key'), r.get('detail')])
     return Response(si.getvalue().encode('utf-8-sig'), mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=timeline.csv'})
-
 @app.get("/api/v1/admin/audit/export")
 def api_audit_export():
     if not require_role("admin"): return jsonify({"error":"Vyžadována role admin."}),403
@@ -262,72 +292,6 @@ def api_audit_export():
     cw.writerow(['at', 'action', 'actor', 'detail'])
     for r in audit_list(): cw.writerow([r.get('at'), r.get('action'), r.get('actor'), r.get('detail')])
     return Response(si.getvalue().encode('utf-8-sig'), mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=audit.csv'})
-
-@app.get("/api/v1/debug/env")
-def api_debug_env():
-    import sys, time
-    from pathlib import Path
-    import flask
-    if not require_role("admin"):
-        return jsonify({"error":"Vyžadována role admin."}),403
-    res = {"python": sys.version.split(" ")[0], "flask": flask.__version__}
-
-    # 1. Write permission check
-    data_dir = Path(app.root_path) / 'data'
-    try:
-        data_dir.mkdir(exist_ok=True)
-        test_file = data_dir / '.write_test'
-        test_file.write_text('test')
-        test_file.unlink()
-        res['data_write'] = "OK"
-    except Exception as e:
-        res['data_write'] = f"FAIL: {str(e)}"
-
-    # 2. File modification dates (to check deploy success)
-    files_to_check = [
-        'app.py', 
-        'static/js/decode_lab.js', 
-        'static/js/menu-delay.js', 
-        'static/js/debug.js',
-        'templates/pages/decode_lab.html'
-    ]
-    res['files'] = {}
-    for f in files_to_check:
-        p = Path(app.root_path) / f
-        if p.exists():
-            mtime = p.stat().st_mtime
-            res['files'][f] = time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(mtime))
-        else:
-            res['files'][f] = "MISSING"
-
-    # 3. Dependencies check
-    deps = {}
-    try: 
-        import qrcode; deps['qrcode'] = getattr(qrcode, '__version__', 'OK (no __version__)')
-    except Exception as e: 
-        deps['qrcode'] = f"ERROR: {str(e)}"
-
-    try: 
-        import barcode; deps['barcode'] = getattr(barcode, 'version', getattr(barcode, '__version__', 'OK (no version attr)'))
-    except Exception as e: 
-        deps['barcode'] = f"ERROR: {str(e)}"
-
-    try: 
-        import PIL; deps['Pillow'] = PIL.__version__
-    except Exception as e: 
-        deps['Pillow'] = f"ERROR: {str(e)}"
-
-    res['deps'] = deps
-    res['sys_path'] = sys.path
-
-    return jsonify(res)
-
-@app.get("/api/v1/debug/routes")
-def api_debug_routes():
- return jsonify({"routes":sorted([str(r.rule) for r in app.url_map.iter_rules()])})
-@app.post("/api/v1/debug/ping")
-def api_debug_ping():
- return jsonify({"ok":True,"received":body()})
 @app.get("/api/v1/inventory/sessions")
 def inventory_sessions():
  if not current_user(): return jsonify({"error":"Přihlas se."}),401
