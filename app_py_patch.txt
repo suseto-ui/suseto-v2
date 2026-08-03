@@ -1,6 +1,0 @@
-# app.py patch plan
-from services.config import get_config
-
-app = Flask(__name__, template_folder="templates", static_folder="static")
-app.config.from_object(get_config())
-app.secret_key = app.config['SECRET_KEY']
