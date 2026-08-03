@@ -1,6 +1,6 @@
 from services.error_logger import setup_logging
 ...
-setup_logging(app)
+app = Flask(__name__)
 import os
 import sys
 
