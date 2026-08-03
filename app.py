@@ -1,3 +1,6 @@
+from services.error_logger import setup_logging
+...
+setup_logging(app)
 import os
 import sys
 
