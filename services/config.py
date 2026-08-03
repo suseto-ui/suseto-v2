@@ -1,18 +1,9 @@
-﻿import os
-from pathlib import Path
+﻿"""
+Configuration for Suseto.
+"""
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
-
-
-def get_config():
-    return {
-        "SECRET_KEY": os.getenv("SUSETO_SECRET_KEY", "dev-secret-change-me"),
-        "DATA_DIR": DATA_DIR,
-        "ADMIN_USERNAME": (os.getenv("SUSETO_ADMIN_USERNAME", "admin") or "admin"),
-        "DEFAULT_ADMIN_PASSWORD": (os.getenv("SUSETO_ADMIN_PASSWORD", "admin123") or "admin123"),
-    }
-
-
-CONFIG = get_config()
-
+CONFIG = {
+    "ADMIN_USERNAME": "admin",
+    "DEFAULT_ADMIN_PASSWORD": "admin123",
+    "SESSION_COOKIE": "suseto_session",
+}
