@@ -12,4 +12,8 @@ This repository contains the Suseto v2 application files from the pack 43 versio
 pip install -r requirements.txt
 python app.py
 ```
-
+nahrat na web
+bash 
+.....................
+cd /home/Suseto/suseto_v2
+git pull origin main
