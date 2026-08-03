@@ -2,7 +2,6 @@ from services.error_logger import setup_logging
 import os
 import sys
 
-# Explicitly add both possible home directory paths for Suseto
 paths_to_add = [
     "/home/Suseto/.local/lib/python3.13/site-packages",
     "/home/suseto/.local/lib/python3.13/site-packages",
@@ -26,14 +25,15 @@ from services.aidc_batch import preview_csv, generate_batch
 from services.registry_store import profiles, items, add_profile, add_item, set_status, match, export_csv_text, import_csv_text
 from services.transform_service import analyze as transform_analyze, time_formats
 from services.operations_service import session_create, session_add, session_list, profile as payload_profile, diff as payload_diff, patterns as payload_patterns, gs1, backup, restore
-from services.auth_service import list_users, create_user, set_role, toggle_active, verify, delete_user, reset_password, change_password
 from services.audit_service import write as audit_write, list_entries as audit_list
 from services.decode_service import chain as decode_chain, pattern_library
 from services.location_service import list_locations, add_location
 from services.timeline_service import add as timeline_add, list_for as timeline_list
 from services.workbench_routes import register_workbench
-from routes.debug_routes import debug_bp
 from routes.helpers import current_user, require_role, body
+from routes.debug_routes import debug_bp
+from routes.auth_routes import auth_bp
+from routes.admin_routes import admin_bp
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.config["TEMPLATES_AUTO_RELOAD"] = True
@@ -44,7 +44,12 @@ from services.error_logger import setup_logging
 setup_logging(app)
 register_workbench(app)
 app.register_blueprint(debug_bp)
+app.register_blueprint(auth_bp)
+app.register_blueprint(admin_bp)
 
+# ---------------------------------------------------------------------------
+# Page routes
+# ---------------------------------------------------------------------------
 @app.route("/")
 def home(): return render_template("pages/rozcestnik.html")
 @app.route("/navigator")
@@ -103,61 +108,71 @@ def auth_lab(): return render_template("pages/auth_lab.html")
 def runs(): return render_template("pages/runs.html")
 @app.route("/health")
 def health(): return jsonify({"status":"ok","modules":["navigator","generator","state_lab","auth_lab","run_history","aidc_studio","aidc_batch","registry","label_profiles","scanner_lab","transform_lab","dashboard","inventory","insight_lab","label_designer","backup_center"],"mode":"sandbox-only"})
-@app.get("/api/v1/auth/me")
-def auth_me(): return jsonify({"user":current_user()})
-@app.post("/api/v1/auth/login")
-def auth_login():
- u=verify(body().get("username",""), body().get("password",""))
- if not u:return jsonify({"error":"Neplatné přihlášení."}),401
- session["username"]=u["username"]; session["role"]=u["role"]; audit_write("login",u["username"],u["role"]); return jsonify({"user":u})
-@app.post("/api/v1/auth/logout")
-def auth_logout():
- audit_write("logout",session.get("username","anonymous"),"")
- session.clear(); return jsonify({"ok":True})
-@app.get("/api/v1/admin/users")
-def admin_users():
- if not require_role("admin"): return jsonify({"error":"Vyžadována role admin."}),403
- return jsonify({"users":list_users()})
-@app.post("/api/v1/admin/users")
-def admin_user_create():
- if not require_role("admin"): return jsonify({"error":"Vyžadována role admin."}),403
- try:
-  res=create_user(body().get("username"),body().get("password"),body().get("role","viewer")); audit_write("create_user",session.get("username"),res["username"]); return jsonify(res),201
- except ValueError as e:return jsonify({"error":str(e)}),400
-@app.post("/api/v1/admin/users/role")
-def admin_user_role():
- if not require_role("admin"): return jsonify({"error":"Vyžadována role admin."}),403
- try:
-  res=set_role(body().get("username"),body().get("role","viewer")); audit_write("set_role",session.get("username"),f"{body().get('username')}->{body().get('role')}"); return jsonify(res)
- except ValueError as e:return jsonify({"error":str(e)}),404
-@app.post("/api/v1/admin/users/toggle")
-def admin_user_toggle():
- if not require_role("admin"): return jsonify({"error":"Vyžadována role admin."}),403
- try:
-  res=toggle_active(body().get("username")); audit_write("toggle_active",session.get("username"),body().get("username")); return jsonify(res)
- except ValueError as e:return jsonify({"error":str(e)}),404
-@app.post("/api/v1/auth/change-password")
-def auth_change_password():
- if not current_user(): return jsonify({"error":"Přihlas se."}),401
- try:
-  res=change_password(session.get("username"),body().get("old_password",""),body().get("new_password","")); audit_write("change_password",session.get("username"),""); return jsonify(res)
- except ValueError as e:return jsonify({"error":str(e)}),400
-@app.get("/api/v1/admin/audit")
-def admin_audit():
- if not require_role("admin"): return jsonify({"error":"Vyžadována role admin."}),403
- return jsonify({"entries":audit_list()})
-@app.post("/api/v1/admin/users/delete")
-def admin_user_delete():
- if not require_role("admin"): return jsonify({"error":"Vyžadována role admin."}),403
- try:
-  res=delete_user(body().get("username")); audit_write("delete_user",session.get("username"),body().get("username")); return jsonify(res)
- except ValueError as e:return jsonify({"error":str(e)}),400
-@app.post("/api/v1/admin/users/reset-password")
-def admin_user_reset_password():
- if not require_role("admin"): return jsonify({"error":"Vyžadována role admin."}),403
- try:
-  res=reset_password(body().get("username"),body().get("new_password","")); audit_write("reset_password",session.get("username"),body().get("username")); return jsonify(res)
- except ValueError as e:return jsonify({"error":str(e)}),400
+
+# ---------------------------------------------------------------------------
+# API routes (not yet migrated to blueprints)
+# ---------------------------------------------------------------------------
+@app.post("/api/v1/debug/install_pip")
+def api_debug_install_pip():
+    if not require_role("admin"):
+        return jsonify({"error": "Vyžadována role admin."}), 403
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["python3", "-m", "pip", "install", "--user", "qrcode[pil]", "python-barcode[images]", "Pillow"],
+            capture_output=True, text=True
+        )
+        output = result.stdout + "\n" + result.stderr
+        import site
+        from pathlib import Path
+        user_site = Path.home() / '.local' / 'lib' / f'python{sys.version_info.major}.{sys.version_info.minor}' / 'site-packages'
+        if user_site.exists():
+            site.addsitedir(str(user_site))
+        return jsonify({"ok": True, "log": output})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+@app.get("/api/v1/debug/env")
+def api_debug_env():
+    import time
+    from pathlib import Path
+    import flask
+    if not require_role("admin"):
+        return jsonify({"error": "Vyžadována role admin."}), 403
+    res = {"python": sys.version.split(" ")[0], "flask": flask.__version__}
+    data_dir = Path(app.root_path) / 'data'
+    try:
+        data_dir.mkdir(exist_ok=True)
+        test_file = data_dir / '.write_test'
+        test_file.write_text('test')
+        test_file.unlink()
+        res['data_write'] = "OK"
+    except Exception as e:
+        res['data_write'] = f"FAIL: {str(e)}"
+    files_to_check = ['app.py','static/js/decode_lab.js','static/js/menu-delay.js','static/js/debug.js','templates/pages/decode_lab.html']
+    res['files'] = {}
+    for f in files_to_check:
+        p = Path(app.root_path) / f
+        if p.exists():
+            import time as _t
+            res['files'][f] = _t.strftime('%Y-%m-%d %H:%M:%S UTC', _t.gmtime(p.stat().st_mtime))
+        else:
+            res['files'][f] = "MISSING"
+    deps = {}
+    try:
+        import qrcode; deps['qrcode'] = getattr(qrcode, '__version__', 'OK')
+    except Exception as e:
+        deps['qrcode'] = f"ERROR: {str(e)}"
+    try:
+        import barcode; deps['barcode'] = getattr(barcode, 'version', getattr(barcode, '__version__', 'OK'))
+    except Exception as e:
+        deps['barcode'] = f"ERROR: {str(e)}"
+    try:
+        import PIL; deps['Pillow'] = PIL.__version__
+    except Exception as e:
+        deps['Pillow'] = f"ERROR: {str(e)}"
+    res['deps'] = deps
+    res['sys_path'] = sys.path
+    return jsonify(res)
 @app.post("/api/v1/decode/chain")
 def api_decode_chain():
  if not current_user(): return jsonify({"error":"Přihlas se."}),401
@@ -188,72 +203,10 @@ def api_expected_audit():
  rows=body().get("expected",[]); scanned=body().get("scanned",[])
  exp={str(x).strip() for x in rows if str(x).strip()}; sc={str(x).strip() for x in scanned if str(x).strip()}
  return jsonify({"found":sorted(exp & sc),"missing":sorted(exp - sc),"unexpected":sorted(sc - exp)})
-@app.post("/api/v1/debug/install_pip")
-def api_debug_install_pip():
-    if not require_role("admin"):
-        return jsonify({"error": "Vyžadována role admin."}), 403
-    import subprocess, sys
-    try:
-        result = subprocess.run(
-            ["python3", "-m", "pip", "install", "--user", "qrcode[pil]", "python-barcode[images]", "Pillow"],
-            capture_output=True,
-            text=True
-        )
-        output = result.stdout + "\n" + result.stderr
-        import site
-        from pathlib import Path
-        user_site = Path.home() / '.local' / 'lib' / f'python{sys.version_info.major}.{sys.version_info.minor}' / 'site-packages'
-        if user_site.exists():
-            site.addsitedir(str(user_site))
-        return jsonify({"ok": True, "log": output})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
-@app.get("/api/v1/debug/env")
-def api_debug_env():
-    import sys, time
-    from pathlib import Path
-    import flask
-    if not require_role("admin"):
-        return jsonify({"error":"Vyžadována role admin."}),403
-    res = {"python": sys.version.split(" ")[0], "flask": flask.__version__}
-    data_dir = Path(app.root_path) / 'data'
-    try:
-        data_dir.mkdir(exist_ok=True)
-        test_file = data_dir / '.write_test'
-        test_file.write_text('test')
-        test_file.unlink()
-        res['data_write'] = "OK"
-    except Exception as e:
-        res['data_write'] = f"FAIL: {str(e)}"
-    files_to_check = ['app.py','static/js/decode_lab.js','static/js/menu-delay.js','static/js/debug.js','templates/pages/decode_lab.html']
-    res['files'] = {}
-    for f in files_to_check:
-        p = Path(app.root_path) / f
-        if p.exists():
-            mtime = p.stat().st_mtime
-            res['files'][f] = time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(mtime))
-        else:
-            res['files'][f] = "MISSING"
-    deps = {}
-    try:
-        import qrcode; deps['qrcode'] = getattr(qrcode, '__version__', 'OK (no __version__)')
-    except Exception as e:
-        deps['qrcode'] = f"ERROR: {str(e)}"
-    try:
-        import barcode; deps['barcode'] = getattr(barcode, 'version', getattr(barcode, '__version__', 'OK (no version attr)'))
-    except Exception as e:
-        deps['barcode'] = f"ERROR: {str(e)}"
-    try:
-        import PIL; deps['Pillow'] = PIL.__version__
-    except Exception as e:
-        deps['Pillow'] = f"ERROR: {str(e)}"
-    res['deps'] = deps
-    res['sys_path'] = sys.path
-    return jsonify(res)
 @app.get("/api/v1/dashboard/stats")
 def api_dashboard_stats():
     if not current_user(): return jsonify({"error":"Přihlas se."}),401
-    users = len(list_users())
+    users = len(list_users_fn())
     locs = len(list_locations())
     timeline = timeline_list(None)
     audit = audit_list()
@@ -283,15 +236,6 @@ def api_timeline_export():
     cw.writerow(['at', 'action', 'actor', 'asset_key', 'detail'])
     for r in timeline_list(None): cw.writerow([r.get('at'), r.get('action'), r.get('actor'), r.get('asset_key'), r.get('detail')])
     return Response(si.getvalue().encode('utf-8-sig'), mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=timeline.csv'})
-@app.get("/api/v1/admin/audit/export")
-def api_audit_export():
-    if not require_role("admin"): return jsonify({"error":"Vyžadována role admin."}),403
-    import csv, io
-    si = io.StringIO()
-    cw = csv.writer(si)
-    cw.writerow(['at', 'action', 'actor', 'detail'])
-    for r in audit_list(): cw.writerow([r.get('at'), r.get('action'), r.get('actor'), r.get('detail')])
-    return Response(si.getvalue().encode('utf-8-sig'), mimetype='text/csv', headers={'Content-Disposition': 'attachment; filename=audit.csv'})
 @app.get("/api/v1/inventory/sessions")
 def inventory_sessions():
  if not current_user(): return jsonify({"error":"Přihlas se."}),401
@@ -402,3 +346,8 @@ def api_runs(): return jsonify({"runs":list_runs()})
 @app.get("/api/v1/runs/<run_id>")
 def api_run(run_id):
  r=get_run(run_id); return (jsonify(r),200) if r else (jsonify({"error":"not_found"}),404)
+
+# ---------------------------------------------------------------------------
+# local alias needed by api_dashboard_stats (list_users imported via admin_bp)
+# ---------------------------------------------------------------------------
+from services.auth_service import list_users as list_users_fn
