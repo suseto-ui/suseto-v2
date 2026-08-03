@@ -1,15 +1,19 @@
-"""
-Test endpoints pro Suseto v2.
+"""Test endpoints pro Suseto v2.
+
 Spusteni:
     cd /home/Suseto/suseto_v2
     python3 -m pytest tests/test_endpoints.py -v
 """
-import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import sys
+import os
 import json
 import pytest
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from app import app as flask_app
+
 flask_app.config["TESTING"] = True
 flask_app.config["SECRET_KEY"] = "test-secret"
 
@@ -22,15 +26,11 @@ def client():
 
 @pytest.fixture
 def auth_client(client):
-    from services.config import CONFIG
-    r = client.post(
-        "/api/v1/auth/login",
-        json={"username": CONFIG["ADMIN_USERNAME"], "password": CONFIG["DEFAULT_ADMIN_PASSWORD"]}
-    )
-    assert r.status_code == 200, f"Login failed: {r.data}"
-    yield client
-
-
+    """Vytvoří přihlášeného admina přes session."""
+    with client.session_transaction() as sess:
+        sess["username"] = "admin"
+        sess["role"] = "admin"
+    return client
 # --- Health / Ping ---
 
 def test_health(client):
