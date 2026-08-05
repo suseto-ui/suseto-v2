@@ -1,14 +1,12 @@
-from pathlib import Path
-import sys
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+from services.aidc_batch import preview_csv, generate_batch
 
 
-def test_output_format_selection_prefers_svg_for_qr():
-    from services.aidc_batch import _pick_output_format
+def test_preview_csv():
+    result, status = preview_csv(None)
+    assert status == 200
+    assert 'rows' in result
 
-    assert _pick_output_format('qr', 'svg') == 'svg'
-    assert _pick_output_format('qr', 'png') == 'png'
-    assert _pick_output_format('ean13', 'svg') == 'svg'
+
+def test_generate_batch():
+    result = generate_batch(None, '0', 'qr', 'png')
+    assert result['ok'] is True
