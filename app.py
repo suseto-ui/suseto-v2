@@ -1,47 +1,36 @@
-from flask import Flask, jsonify, render_template, request, session, Response
-import os
-import sys
-from pathlib import Path
-
+from flask import Flask, jsonify, render_template
 from services.config import CONFIG
-from services.decision_engine import analyze_payload
-from services.generator_engine import profile_bundle
-from services.state_machine import build_state_graph, replay_path, get_state_detail
-from services.heuristic_engine import build_frontier
-from services.auth_lab import simulate
-from services.run_store import save_run, list_runs, get_run
-from services.aidc_service import generate_qr, generate_barcode, scan_analysis
-from services.aidc_batch import preview_csv, generate_batch
-from services.registry_store import profiles, items, add_profile, add_item, set_status, match, export_csv_text, import_csv_text
-from services.transform_service import analyze as transform_analyze, time_formats
-from services.operations_service import session_create, session_add, session_list, profile as payload_profile, diff as payload_diff, patterns as payload_patterns, gs1, backup, restore
-from services.auth_service import list_users, create_user, set_role, toggle_active, verify, delete_user, reset_password, change_password
-from services.audit_service import write as audit_write, list_entries as audit_list
-from services.decode_service import chain as decode_chain, pattern_library
-from services.location_service import list_locations, add_location
-from services.timeline_service import add as timeline_add, list_for as timeline_list
 
+# create app
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 app.secret_key = CONFIG["SECRET_KEY"]
 application = app
 
+# centralized helpers
+from routes.helpers import current_user, require_role, body  # noqa: E402
 
-def current_user():
-    if session.get("username"):
-        return {"username": session.get("username"), "role": session.get("role")}
-    return None
+# register blueprints (API implementations live in routes/*.py)
+from routes.auth_routes import auth_bp  # noqa: E402
+from routes.aidc_routes import aidc_bp  # noqa: E402
+from routes.admin_routes import admin_bp  # noqa: E402
+from routes.registry_routes import registry_bp  # noqa: E402
+from routes.timeline_routes import timeline_bp  # noqa: E402
+from routes.debug_routes import debug_bp  # noqa: E402
+
+app.register_blueprint(auth_bp)
+app.register_blueprint(aidc_bp)
+app.register_blueprint(admin_bp)
+app.register_blueprint(registry_bp)
+app.register_blueprint(timeline_bp)
+app.register_blueprint(debug_bp)
+
+# register workbench blueprint / endpoints (service-style register)
+from services.workbench_routes import register_workbench  # noqa: E402
+register_workbench(app)
 
 
-def require_role(*roles):
-    user = current_user()
-    return user and user.get("role") in roles
-
-
-def body():
-    return request.get_json(silent=True) or {}
-
-
+# UI page routes (keep these in app.py)
 @app.route("/")
 def home():
     return render_template("pages/rozcestnik.html")
@@ -189,40 +178,6 @@ def runs_page():
 @app.get("/health")
 def health():
     return jsonify({"status": "ok", "user": current_user()})
-
-
-@app.get("/api/v1/auth/me")
-def auth_me():
-    return jsonify({"user": current_user()})
-
-
-@app.post("/api/v1/auth/login")
-def auth_login():
-    data = body()
-    user = verify(data.get("username"), data.get("password"))
-    if not user:
-        return jsonify({"error": "Neplatné přihlášení."}), 401
-    session["username"] = user["username"]
-    session["role"] = user["role"]
-    audit_write("login", user["username"], user["role"])
-    return jsonify({"user": user})
-
-
-@app.post("/api/v1/auth/logout")
-def auth_logout():
-    audit_write("logout", session.get("username", "anonymous"), "")
-    session.clear()
-    return jsonify({"ok": True})
-
-
-@app.get("/api/v1/debug/routes")
-def api_debug_routes():
-    return jsonify({"routes": sorted([str(r.rule) for r in app.url_map.iter_rules()])})
-
-
-@app.post("/api/v1/debug/ping")
-def api_debug_ping():
-    return jsonify({"ok": True, "received": body()})
 
 
 if __name__ == "__main__":
