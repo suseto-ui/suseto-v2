@@ -41,7 +41,7 @@
         <div class="nav-menu">
           <a href="{{ url_for('registry') }}"{% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
           <a href="{{ url_for('label_profiles') }}"{% if request.path == '/label-profiles' %} class="active"{% endif %}>Label Profiles</a>
-          <a href="{{ url_for('inventory') }}"{% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
+          <a href="{{ url_for('inventory_page') }}"{% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
           <a href="{{ url_for('locations_page') }}"{% if request.path == '/locations' %} class="active"{% endif %}>Locations</a>
           <a href="{{ url_for('dashboard') }}"{% if request.path == '/dashboard' %} class="active"{% endif %}>Dashboard</a>
         </div>
