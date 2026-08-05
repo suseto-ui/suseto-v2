@@ -1,71 +1,140 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="cs">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Suseto v2{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/core.css') }}">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Suseto{% endblock %}</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #0b1020;
+            --panel: #111733;
+            --panel-soft: #182046;
+            --text: #e7ecff;
+            --muted: #9aa6d1;
+            --line: rgba(255,255,255,0.08);
+            --accent: #7c5cff;
+            --accent-2: #44d7b6;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #182046 0%, var(--bg) 60%);
+            color: var(--text);
+        }
+        header {
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(12px);
+            background: rgba(11, 16, 32, 0.78);
+            border-bottom: 1px solid var(--line);
+            z-index: 10;
+        }
+        .nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 14px 20px;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .brand {
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            margin-right: 12px;
+        }
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 10px;
+            transition: 0.2s ease;
+        }
+        .nav a:hover,
+        .nav a.active {
+            background: rgba(124, 92, 255, 0.16);
+            color: var(--text);
+        }
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 28px 20px 56px;
+        }
+        .card {
+            background: linear-gradient(180deg, rgba(17, 23, 51, 0.96), rgba(13, 18, 39, 0.96));
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+        }
+        h1, h2, h3 { margin-top: 0; }
+        .muted { color: var(--muted); }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), #9c7bff);
+            color: white;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+        .btn.secondary {
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 14px;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--line);
+        }
+        th { color: var(--muted); font-weight: 600; }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(68, 215, 182, 0.12);
+            color: var(--accent-2);
+            font-size: 0.9rem;
+        }
+        .spaced { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    </style>
 </head>
 <body>
-<header class="site-header">
-  <div class="shell shell-header">
-    <a class="brand" href="{{ url_for('home') }}">
-      <span class="brand-mark">&#8984;</span>
-      <span class="brand-text">Suseto v2</span>
-    </a>
-
-    <nav class="topnav" aria-label="Hlavní navigace">
-      <a href="{{ url_for('home') }}"{% if request.path == '/' %} class="active"{% endif %}>Rozcestník</a>
-
-      <details class="nav-group"{% if request.path in ['/aidc-studio','/aidc-batch','/scanner-lab'] %} open{% endif %}>
-        <summary>AIDC</summary>
-        <div class="nav-menu">
-          <a href="{{ url_for('aidc_studio') }}"{% if request.path == '/aidc-studio' %} class="active"{% endif %}>AIDC Studio</a>
-          <a href="{{ url_for('aidc_batch') }}"{% if request.path == '/aidc-batch' %} class="active"{% endif %}>AIDC Batch</a>
-          <a href="{{ url_for('scanner_lab') }}"{% if request.path == '/scanner-lab' %} class="active"{% endif %}>Scanner Lab</a>
+    <header>
+        <nav class="nav">
+            <div class="brand">SUSETO</div>
+            <a href="{{ url_for('home') }}"{% if request.path == '/' %} class="active"{% endif %}>Home</a>
+            <a href="{{ url_for('inventory_page') }}"{% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
+            <a href="{{ url_for('runs_page') }}"{% if request.path == '/runs' %} class="active"{% endif %}>Runs</a>
+            <a href="{{ url_for('registry_page') }}"{% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
+            <a href="{{ url_for('timeline_page') }}"{% if request.path == '/timeline' %} class="active"{% endif %}>Timeline</a>
+            <a href="{{ url_for('aidc_page') }}"{% if request.path == '/aidc' %} class="active"{% endif %}>AIDC</a>
+            <a href="{{ url_for('decode_page') }}"{% if request.path == '/decode' %} class="active"{% endif %}>Decode</a>
+            <a href="{{ url_for('debug_page') }}"{% if request.path == '/debug' %} class="active"{% endif %}>Debug</a>
+            <a href="{{ url_for('admin_page') }}"{% if request.path == '/admin' %} class="active"{% endif %}>Admin</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+    <main>
+        <div class="card">
+            {% block content %}{% endblock %}
         </div>
-      </details>
-
-      <details class="nav-group"{% if request.path in ['/decode-lab','/state-lab','/insight-lab','/transform-lab'] %} open{% endif %}>
-        <summary>Analýza</summary>
-        <div class="nav-menu">
-          <a href="{{ url_for('decode_lab') }}"{% if request.path == '/decode-lab' %} class="active"{% endif %}>Decode Lab</a>
-          <a href="{{ url_for('state_lab') }}"{% if request.path == '/state-lab' %} class="active"{% endif %}>State Lab</a>
-          <a href="{{ url_for('insight_lab') }}"{% if request.path == '/insight-lab' %} class="active"{% endif %}>Insight Lab</a>
-          <a href="{{ url_for('transform_lab') }}"{% if request.path == '/transform-lab' %} class="active"{% endif %}>Transform Lab</a>
-        </div>
-      </details>
-
-      <details class="nav-group"{% if request.path in ['/registry','/label-profiles','/inventory','/locations','/dashboard'] %} open{% endif %}>
-        <summary>Správa</summary>
-        <div class="nav-menu">
-          <a href="{{ url_for('registry') }}"{% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
-          <a href="{{ url_for('label_profiles') }}"{% if request.path == '/label-profiles' %} class="active"{% endif %}>Label Profiles</a>
-          <a href="{{ url_for('inventory_page') }}"{% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
-          <a href="{{ url_for('locations_page') }}"{% if request.path == '/locations' %} class="active"{% endif %}>Locations</a>
-          <a href="{{ url_for('dashboard') }}"{% if request.path == '/dashboard' %} class="active"{% endif %}>Dashboard</a>
-        </div>
-      </details>
-
-      <details class="nav-group"{% if request.path in ['/debug','/health','/runs','/backup-center','/admin'] %} open{% endif %}>
-        <summary>Systém</summary>
-        <div class="nav-menu">
-          <a href="{{ url_for('debug_page') }}"{% if request.path == '/debug' %} class="active"{% endif %}>Debug</a>
-          <a href="{{ url_for('health') }}"{% if request.path == '/health' %} class="active"{% endif %}>Health</a>
-          <a href="{{ url_for('runs') }}"{% if request.path == '/runs' %} class="active"{% endif %}>Runs</a>
-          <a href="{{ url_for('backup_center') }}"{% if request.path == '/backup-center' %} class="active"{% endif %}>Backup Center</a>
-          <a href="{{ url_for('admin_page') }}"{% if request.path == '/admin' %} class="active"{% endif %}>Admin</a>
-        </div>
-      </details>
-    </nav>
-  </div>
-</header>
-
-<main class="shell">
-  {% block content %}{% endblock %}
-</main>
-
-<script src="{{ url_for('static', filename='js/menu.js') }}"></script>
-{% block extra_scripts %}{% endblock %}
+    </main>
 </body>
 </html>
