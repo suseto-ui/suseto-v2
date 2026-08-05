@@ -122,7 +122,7 @@
             <a href="{{ url_for('home') }}"{% if request.path == '/' %} class="active"{% endif %}>Home</a>
             <a href="{{ url_for('inventory_page') }}"{% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
             <a href="{{ url_for('runs_page') }}"{% if request.path == '/runs' %} class="active"{% endif %}>Runs</a>
-            <a href="{{ url_for('registry_page') }}"{% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
+            <a href="{{ url_for('registry') }}"{% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
             <a href="{{ url_for('timeline_page') }}"{% if request.path == '/timeline' %} class="active"{% endif %}>Timeline</a>
             <a href="{{ url_for('aidc_page') }}"{% if request.path == '/aidc' %} class="active"{% endif %}>AIDC</a>
             <a href="{{ url_for('decode_page') }}"{% if request.path == '/decode' %} class="active"{% endif %}>Decode</a>
