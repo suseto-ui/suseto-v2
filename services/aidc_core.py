@@ -11,9 +11,9 @@ from PIL import Image, ImageDraw, ImageFont
 import qrcode
 import qrcode.image.svg
 import barcode
-from barcode.writer import ImageWriter, SVGWriter
-
-SECRET_KEY = "moje_tajne_heslo_pro_turniket"
+from barcode.writer import ImageWriter, SVGWritery from services.config import CONFIG
+# PO (čte z env proměnné přes CONFIG):
+SECRET_KEY = CONFIG["SECRET_KEY"]
 
 def to_base36(number):
     chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -35,7 +35,7 @@ def xor_sifra(text, klic):
     if not klic:
         return text
     return "".join(chr(ord(c) ^ ord(klic[i % len(klic)])) for i, c in enumerate(text))
-
+from services.config import CONFIG
 def normalizuj_text(text, mod='utf8'):
     if mod == 'ascii':
         return unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('ascii')
