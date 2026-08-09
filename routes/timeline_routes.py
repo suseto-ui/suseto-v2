@@ -8,7 +8,9 @@ from services.location_service import list_locations, add_location
 from services.audit_service import write as audit_write, list_entries as audit_list
 from services.auth_service import list_users
 from services.operations_service import backup, restore
-import csv, io, datetime
+import csv
+import io
+import datetime
 from collections import defaultdict
 
 timeline_bp = Blueprint("timeline", __name__)

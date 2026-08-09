@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 import qrcode
 import qrcode.image.svg
 import barcode
-from barcode.writer import ImageWriter, SVGWritery from services.config import CONFIG
+from barcode.writer import ImageWriter, SVGWriter from services.config import CONFIG
 # PO (čte z env proměnné přes CONFIG):
 SECRET_KEY = CONFIG["SECRET_KEY"]
 

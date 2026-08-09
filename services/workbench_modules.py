@@ -1,6 +1,11 @@
 # services/workbench_modules.py
 # Rozšiřující analytické moduly pro Workbench
-import re, math, base64, json, csv, io
+import re
+import math
+import base64
+import json
+import csv
+import io
 from typing import Dict, Any, List
 
 # ── BATCH ANALYZER ────────────────────────────────────────────────────────────

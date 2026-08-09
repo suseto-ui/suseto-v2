@@ -1,4 +1,9 @@
-import base64, binascii, re, urllib.parse, math, logging
+import base64
+import binascii
+import re
+import urllib.parse
+import math
+import logging
 from collections import Counter, defaultdict
 
 logger = logging.getLogger("suseto.decode")
