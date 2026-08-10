@@ -1,41 +1,140 @@
 <!DOCTYPE html>
-<html lang="cs" data-theme="light">
+<html lang="cs">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suseto</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    {% block extra_css %}{% endblock %}
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Suseto{% endblock %}</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #0b1020;
+            --panel: #111733;
+            --panel-soft: #182046;
+            --text: #e7ecff;
+            --muted: #9aa6d1;
+            --line: rgba(255,255,255,0.08);
+            --accent: #7c5cff;
+            --accent-2: #44d7b6;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: radial-gradient(circle at top, #182046 0%, var(--bg) 60%);
+            color: var(--text);
+        }
+        header {
+            position: sticky;
+            top: 0;
+            backdrop-filter: blur(12px);
+            background: rgba(11, 16, 32, 0.78);
+            border-bottom: 1px solid var(--line);
+            z-index: 10;
+        }
+        .nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 14px 20px;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .brand {
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            margin-right: 12px;
+        }
+        .nav a {
+            color: var(--muted);
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 10px;
+            transition: 0.2s ease;
+        }
+        .nav a:hover,
+        .nav a.active {
+            background: rgba(124, 92, 255, 0.16);
+            color: var(--text);
+        }
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 28px 20px 56px;
+        }
+        .card {
+            background: linear-gradient(180deg, rgba(17, 23, 51, 0.96), rgba(13, 18, 39, 0.96));
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+        }
+        h1, h2, h3 { margin-top: 0; }
+        .muted { color: var(--muted); }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent), #9c7bff);
+            color: white;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+        .btn.secondary {
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 14px;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--line);
+        }
+        th { color: var(--muted); font-weight: 600; }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(68, 215, 182, 0.12);
+            color: var(--accent-2);
+            font-size: 0.9rem;
+        }
+        .spaced { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    </style>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-brand">
-            <i class="fas fa-layer-group"></i>
-            Suseto
+    <header>
+        <nav class="nav">
+            <div class="brand">SUSETO</div>
+            <a href="{{ url_for('home') }}"{% if request.path == '/' %} class="active"{% endif %}>Home</a>
+            <a href="{{ url_for('inventory_page') }}"{% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
+            <a href="{{ url_for('runs_page') }}"{% if request.path == '/runs' %} class="active"{% endif %}>Runs</a>
+            <a href="{{ url_for('registry') }}"{% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
+            <a href="{{ url_for('core.timeline_page') }}"{% if request.path == '/timeline' %} class="active"{% endif %}>Timeline</a>
+            <a href="{{ url_for('aidc_studio') }}"{% if request.path == '/aidc' %} class="active"{% endif %}>AIDC</a>
+            <a href="{{ url_for('decode_lab') }}"{% if request.path == '/decode' %} class="active"{% endif %}>Decode</a>
+            <a href="{{ url_for('debug_page') }}"{% if request.path == '/debug' %} class="active"{% endif %}>Debug</a>
+            <a href="{{ url_for('admin_page') }}"{% if request.path == '/admin' %} class="active"{% endif %}>Admin</a>
+            <a href="{{ url_for('auth_logout') }}">Logout</a>
+        </nav>
+    </header>
+    <main>
+        <div class="card">
+            {% block content %}{% endblock %}
         </div>
-        <div class="nav-links">
-            <a href="{{ url_for('home') }}"{% if request.path == '/' %} class="active"{% endif %}>Rozcestník</a>
-            <a href="{{ url_for('navigator') }}"{% if request.path == '/navigator' %} class="active"{% endif %}>Navigator</a>
-            <a href="{{ url_for('timeline.timeline_page') }}"{% if request.path == '/timeline' %} class="active"{% endif %}>Timeline</a>
-        </div>
-        <div class="nav-controls">
-            <button class="theme-toggle" id="themeToggle" aria-label="Přepnout motiv">
-                <i class="fas fa-sun"></i>
-            </button>
-            <div class="user-menu">
-                <div class="user-avatar">
-                    <i class="fas fa-user"></i>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <main class="main-content">
-        {% block content %}{% endblock %}
     </main>
-
-    <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-    {% block extra_js %}{% endblock %}
 </body>
 </html>
