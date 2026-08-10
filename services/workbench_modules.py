@@ -8,9 +8,11 @@ import csv
 import io
 from typing import Dict, Any, List
 
+
 # ── BATCH ANALYZER ────────────────────────────────────────────────────────────
 def batch_analyze(csv_text: str, column: str = "code") -> Dict[str, Any]:
     from services.workbench_service import ingest_identifier, run_analysis_pipeline
+
     reader = csv.DictReader(io.StringIO(csv_text))
     rows = list(reader)
     if not rows:
@@ -26,15 +28,19 @@ def batch_analyze(csv_text: str, column: str = "code") -> Dict[str, Any]:
         analysis = run_analysis_pipeline(ident.to_dict())
         t = ident.type
         stats[t] = stats.get(t, 0) + 1
-        results.append({
-            "raw": raw,
-            "type": t,
-            "datetime": ident.attributes.get("datum", "") + " " + ident.attributes.get("cas", ""),
-            "id_karty": ident.attributes.get("id_karty", ""),
-            "risk_score": analysis.get("risk_score", 0),
-            "notes": "; ".join(analysis.get("notes", [])),
-            "attributes": ident.attributes,
-        })
+        results.append(
+            {
+                "raw": raw,
+                "type": t,
+                "datetime": ident.attributes.get("datum", "")
+                + " "
+                + ident.attributes.get("cas", ""),
+                "id_karty": ident.attributes.get("id_karty", ""),
+                "risk_score": analysis.get("risk_score", 0),
+                "notes": "; ".join(analysis.get("notes", [])),
+                "attributes": ident.attributes,
+            }
+        )
     return {"ok": True, "total": len(results), "stats": stats, "results": results}
 
 
@@ -52,6 +58,7 @@ def batch_to_csv(results: List[Dict]) -> str:
 # ── TIMELINE VIEWER ───────────────────────────────────────────────────────────
 def build_timeline(codes: List[str]) -> Dict[str, Any]:
     from services.workbench_service import parse_access_gate
+
     events = []
     errors = []
     for code in codes:
@@ -60,16 +67,18 @@ def build_timeline(codes: List[str]) -> Dict[str, Any]:
             continue
         ag = parse_access_gate(c)
         if ag:
-            events.append({
-                "code": c,
-                "datetime_iso": ag["datetime_iso"],
-                "datum": ag["datum"],
-                "cas": ag["cas"],
-                "id_karty": ag["id_karty"],
-                "typ_brany": ag["typ_brany"],
-                "flag": ag["flag"],
-                "flag_label": ag["flag_label"],
-            })
+            events.append(
+                {
+                    "code": c,
+                    "datetime_iso": ag["datetime_iso"],
+                    "datum": ag["datum"],
+                    "cas": ag["cas"],
+                    "id_karty": ag["id_karty"],
+                    "typ_brany": ag["typ_brany"],
+                    "flag": ag["flag"],
+                    "flag_label": ag["flag_label"],
+                }
+            )
         else:
             errors.append(c)
     events.sort(key=lambda x: x["datetime_iso"])
@@ -91,6 +100,7 @@ def build_timeline(codes: List[str]) -> Dict[str, Any]:
 # ── PATTERN DETECTOR ─────────────────────────────────────────────────────────
 def detect_patterns(codes: List[str]) -> Dict[str, Any]:
     from services.workbench_service import parse_access_gate
+
     parsed = [parse_access_gate(c.strip()) for c in codes if c.strip()]
     parsed = [p for p in parsed if p]
     if not parsed:
@@ -111,17 +121,41 @@ def detect_patterns(codes: List[str]) -> Dict[str, Any]:
     # Detekce anomalií
     for card, cnt in card_counts.items():
         if cnt > 5:
-            patterns.append({"typ": "high_frequency", "zprava": f"Karta {card} prochazela {cnt}x", "zavaznost": "stredni"})
+            patterns.append(
+                {
+                    "typ": "high_frequency",
+                    "zprava": f"Karta {card} prochazela {cnt}x",
+                    "zavaznost": "stredni",
+                }
+            )
 
     for h, cnt in hour_counts.items():
         if (h < 6 or h > 22) and cnt > 0:
-            patterns.append({"typ": "off_hours", "zprava": f"Pruchody v nestandardni hodine {h}:00 ({cnt}x)", "zavaznost": "vysoka"})
+            patterns.append(
+                {
+                    "typ": "off_hours",
+                    "zprava": f"Pruchody v nestandardni hodine {h}:00 ({cnt}x)",
+                    "zavaznost": "vysoka",
+                }
+            )
 
     if "alarm" in flag_counts:
-        patterns.append({"typ": "alarm_flag", "zprava": f"Detekovan alarm flag ({flag_counts['alarm']}x)", "zavaznost": "kriticka"})
+        patterns.append(
+            {
+                "typ": "alarm_flag",
+                "zprava": f"Detekovan alarm flag ({flag_counts['alarm']}x)",
+                "zavaznost": "kriticka",
+            }
+        )
 
     if "odmitnuto" in flag_counts:
-        patterns.append({"typ": "denied_entry", "zprava": f"Odmitnute vstupy ({flag_counts['odmitnuto']}x)", "zavaznost": "vysoka"})
+        patterns.append(
+            {
+                "typ": "denied_entry",
+                "zprava": f"Odmitnute vstupy ({flag_counts['odmitnuto']}x)",
+                "zavaznost": "vysoka",
+            }
+        )
 
     dates.sort()
     return {
@@ -130,69 +164,127 @@ def detect_patterns(codes: List[str]) -> Dict[str, Any]:
         "card_counts": card_counts,
         "hour_distribution": hour_counts,
         "flag_summary": flag_counts,
-        "date_range": {"od": dates[0] if dates else "", "do": dates[-1] if dates else ""},
+        "date_range": {
+            "od": dates[0] if dates else "",
+            "do": dates[-1] if dates else "",
+        },
         "patterns": patterns,
     }
 
 
 # ── GS1 / GTIN PARSER ────────────────────────────────────────────────────────
 GS1_PREFIXES = {
-    "000-019": "USA/Kanada", "020-029": "Lokalni",
-    "040-049": "Lokalni", "050-059": "Kupony",
-    "060-139": "USA/Kanada", "300-379": "Francie",
-    "380": "Bulharsko", "383": "Slovinsko",
-    "385": "Chorvatsko", "387": "Bosna",
-    "400-440": "Nemecko", "450-459": "Japonsko",
-    "460-469": "Rusko", "477": "Estonsko",
-    "478": "Lotyssko", "479": "Sri Lanka",
-    "480": "Filipiny", "482": "Ukrajina",
-    "484": "Moldavsko", "485": "Armenie",
-    "486": "Gruzie", "487": "Kazachstan",
-    "489": "Hongkong", "490-499": "Japonsko",
-    "500-509": "UK", "520": "Recko",
-    "528": "Libanon", "529": "Kypr",
-    "531": "Makedonie", "535": "Malta",
-    "539": "Irsko", "540-549": "Belgie/Lucembursko",
-    "560": "Portugalsko", "569": "Island",
-    "570-579": "Dansko", "590": "Polsko",
-    "594": "Rumunsko", "599": "Madarsko",
-    "600-601": "JAR", "603": "Ghana",
-    "608": "Bahrain", "609": "Mauricius",
-    "611": "Maroko", "613": "Alzirsko",
-    "616": "Kena", "618": "Pobrezi slonoviny",
-    "619": "Tunisko", "621": "Syrie",
-    "622": "Egypt", "624": "Libye",
-    "625": "Jordansko", "626": "Iran",
-    "627": "Kuvajt", "628": "SAE",
-    "629": "Saudska Arabie", "640-649": "Finsko",
-    "690-699": "Cina", "700-709": "Norsko",
-    "729": "Izrael", "730-739": "Svedsko",
-    "740": "Guatemala", "741": "Salvador",
-    "742": "Honduras", "743": "Nikaragua",
-    "744": "Kostarika", "745": "Panama",
-    "746": "Dominikanska rep.", "750": "Mexiko",
-    "754-755": "Kanada", "759": "Venezuela",
-    "760-769": "Svycarsko", "770": "Kolumbie",
-    "773": "Uruguay", "775": "Peru",
-    "777": "Bolivie", "779": "Argentina",
-    "780": "Chile", "784": "Paraguay",
-    "786": "Ekvador", "789-790": "Brazilie",
-    "800-839": "Italie", "840-849": "Spanelsko",
-    "850": "Kuba", "858": "Slovensko",
-    "859": "Ceska republika", "860": "Srbsko",
-    "865": "Mongolsko", "867": "Severni Korea",
-    "868-869": "Turecko", "870-879": "Nizozemsko",
-    "880": "Jizni Korea", "884": "Kambodza",
-    "885": "Thajsko", "888": "Singapur",
-    "890": "Indie", "893": "Vietnam",
-    "896": "Pakistan", "899": "Indonesie",
-    "900-919": "Rakousko", "930-939": "Australie",
-    "940-949": "Novy Zeland", "950": "GS1 Global",
-    "955": "Malajsie", "958": "Macao",
-    "977": "ISSN", "978-979": "ISBN",
-    "980": "Refundace", "981-982": "Platby",
+    "000-019": "USA/Kanada",
+    "020-029": "Lokalni",
+    "040-049": "Lokalni",
+    "050-059": "Kupony",
+    "060-139": "USA/Kanada",
+    "300-379": "Francie",
+    "380": "Bulharsko",
+    "383": "Slovinsko",
+    "385": "Chorvatsko",
+    "387": "Bosna",
+    "400-440": "Nemecko",
+    "450-459": "Japonsko",
+    "460-469": "Rusko",
+    "477": "Estonsko",
+    "478": "Lotyssko",
+    "479": "Sri Lanka",
+    "480": "Filipiny",
+    "482": "Ukrajina",
+    "484": "Moldavsko",
+    "485": "Armenie",
+    "486": "Gruzie",
+    "487": "Kazachstan",
+    "489": "Hongkong",
+    "490-499": "Japonsko",
+    "500-509": "UK",
+    "520": "Recko",
+    "528": "Libanon",
+    "529": "Kypr",
+    "531": "Makedonie",
+    "535": "Malta",
+    "539": "Irsko",
+    "540-549": "Belgie/Lucembursko",
+    "560": "Portugalsko",
+    "569": "Island",
+    "570-579": "Dansko",
+    "590": "Polsko",
+    "594": "Rumunsko",
+    "599": "Madarsko",
+    "600-601": "JAR",
+    "603": "Ghana",
+    "608": "Bahrain",
+    "609": "Mauricius",
+    "611": "Maroko",
+    "613": "Alzirsko",
+    "616": "Kena",
+    "618": "Pobrezi slonoviny",
+    "619": "Tunisko",
+    "621": "Syrie",
+    "622": "Egypt",
+    "624": "Libye",
+    "625": "Jordansko",
+    "626": "Iran",
+    "627": "Kuvajt",
+    "628": "SAE",
+    "629": "Saudska Arabie",
+    "640-649": "Finsko",
+    "690-699": "Cina",
+    "700-709": "Norsko",
+    "729": "Izrael",
+    "730-739": "Svedsko",
+    "740": "Guatemala",
+    "741": "Salvador",
+    "742": "Honduras",
+    "743": "Nikaragua",
+    "744": "Kostarika",
+    "745": "Panama",
+    "746": "Dominikanska rep.",
+    "750": "Mexiko",
+    "754-755": "Kanada",
+    "759": "Venezuela",
+    "760-769": "Svycarsko",
+    "770": "Kolumbie",
+    "773": "Uruguay",
+    "775": "Peru",
+    "777": "Bolivie",
+    "779": "Argentina",
+    "780": "Chile",
+    "784": "Paraguay",
+    "786": "Ekvador",
+    "789-790": "Brazilie",
+    "800-839": "Italie",
+    "840-849": "Spanelsko",
+    "850": "Kuba",
+    "858": "Slovensko",
+    "859": "Ceska republika",
+    "860": "Srbsko",
+    "865": "Mongolsko",
+    "867": "Severni Korea",
+    "868-869": "Turecko",
+    "870-879": "Nizozemsko",
+    "880": "Jizni Korea",
+    "884": "Kambodza",
+    "885": "Thajsko",
+    "888": "Singapur",
+    "890": "Indie",
+    "893": "Vietnam",
+    "896": "Pakistan",
+    "899": "Indonesie",
+    "900-919": "Rakousko",
+    "930-939": "Australie",
+    "940-949": "Novy Zeland",
+    "950": "GS1 Global",
+    "955": "Malajsie",
+    "958": "Macao",
+    "977": "ISSN",
+    "978-979": "ISBN",
+    "980": "Refundace",
+    "981-982": "Platby",
     "990-999": "Kupony",
 }
+
 
 def lookup_gs1_prefix(digits: str) -> str:
     p3 = digits[:3]
@@ -205,13 +297,19 @@ def lookup_gs1_prefix(digits: str) -> str:
             return v
     return "Neznamy"
 
+
 def luhn_check_ean(digits: str) -> bool:
     total = 0
     for i, d in enumerate(digits[:-1]):
         n = int(d)
-        total += n * (3 if i % 2 else 1) if len(digits) == 13 else n * (1 if i % 2 == 0 else 3)
+        total += (
+            n * (3 if i % 2 else 1)
+            if len(digits) == 13
+            else n * (1 if i % 2 == 0 else 3)
+        )
     check = (10 - (total % 10)) % 10
     return check == int(digits[-1])
+
 
 def parse_gs1(raw: str) -> Dict[str, Any]:
     s = raw.strip()
@@ -258,9 +356,10 @@ def parse_gs1(raw: str) -> Dict[str, Any]:
 # ── RFID / NFC DUMP PARSER ───────────────────────────────────────────────────
 MIFARE_BLOCK_SIZE = 16
 
+
 def parse_rfid_dump(hex_dump: str) -> Dict[str, Any]:
     s = hex_dump.replace(" ", "").replace("\n", "").replace(":", "").upper()
-    if not re.match(r'^[0-9A-F]+$', s):
+    if not re.match(r"^[0-9A-F]+$", s):
         return {"ok": False, "error": "Neni platny HEX dump"}
     byte_len = len(s) // 2
     raw_bytes = bytes.fromhex(s)
@@ -291,26 +390,30 @@ def parse_rfid_dump(hex_dump: str) -> Dict[str, Any]:
         result["uid_7b"] = s[:14]
 
     # Parsovani bloku
-    for i in range(0, min(len(s), 32*32), MIFARE_BLOCK_SIZE*2):
-        block_hex = s[i:i+MIFARE_BLOCK_SIZE*2]
+    for i in range(0, min(len(s), 32 * 32), MIFARE_BLOCK_SIZE * 2):
+        block_hex = s[i : i + MIFARE_BLOCK_SIZE * 2]
         if len(block_hex) < 2:
             break
-        block_num = i // (MIFARE_BLOCK_SIZE*2)
-        block_bytes = bytes.fromhex(block_hex.ljust(MIFARE_BLOCK_SIZE*2, "0"))
+        block_num = i // (MIFARE_BLOCK_SIZE * 2)
+        block_bytes = bytes.fromhex(block_hex.ljust(MIFARE_BLOCK_SIZE * 2, "0"))
         ascii_repr = "".join(chr(b) if 32 <= b < 127 else "." for b in block_bytes)
         is_sector_trailer = (block_num + 1) % 4 == 0 and block_num > 0
-        result["blocks"].append({
-            "cislo": block_num,
-            "hex": block_hex,
-            "ascii": ascii_repr,
-            "sector_trailer": is_sector_trailer,
-        })
+        result["blocks"].append(
+            {
+                "cislo": block_num,
+                "hex": block_hex,
+                "ascii": ascii_repr,
+                "sector_trailer": is_sector_trailer,
+            }
+        )
 
     # Heuristiky
     if s.startswith("00000000"):
         result["hints"].append("UID = 00000000 — mozna nulova/testovaci karta")
     if "FFFFFFFFFFFF" in s:
-        result["hints"].append("Nalezeny vychozi klic FF FF FF FF FF FF (karta nebyla zmenena)")
+        result["hints"].append(
+            "Nalezeny vychozi klic FF FF FF FF FF FF (karta nebyla zmenena)"
+        )
     if "A0A1A2A3A4A5" in s:
         result["hints"].append("Nalezen transport klic A0A1A2A3A4A5")
 
@@ -325,7 +428,8 @@ def shannon_entropy(data: str) -> float:
     for c in data:
         freq[c] = freq.get(c, 0) + 1
     n = len(data)
-    return -sum((f/n) * math.log2(f/n) for f in freq.values())
+    return -sum((f / n) * math.log2(f / n) for f in freq.values())
+
 
 def analyze_entropy(raw: str) -> Dict[str, Any]:
     s = raw.strip()
@@ -334,10 +438,10 @@ def analyze_entropy(raw: str) -> Dict[str, Any]:
     ratio = entropy / max_entropy if max_entropy > 0 else 0
 
     charset_score = 0
-    has_upper = bool(re.search(r'[A-Z]', s))
-    has_lower = bool(re.search(r'[a-z]', s))
-    has_digit = bool(re.search(r'[0-9]', s))
-    has_special = bool(re.search(r'[^A-Za-z0-9]', s))
+    has_upper = bool(re.search(r"[A-Z]", s))
+    has_lower = bool(re.search(r"[a-z]", s))
+    has_digit = bool(re.search(r"[0-9]", s))
+    has_special = bool(re.search(r"[^A-Za-z0-9]", s))
     charset_score = sum([has_upper, has_lower, has_digit, has_special])
 
     verdict = "nezname"
@@ -350,7 +454,9 @@ def analyze_entropy(raw: str) -> Dict[str, Any]:
     elif entropy < 4.5:
         verdict = "vysoka — pravdepodobne nahodna data, hash nebo sifrovany retezec"
     else:
-        verdict = "velmi_vysoka — pravdepodobne kryptograficka data, klice nebo binarni data"
+        verdict = (
+            "velmi_vysoka — pravdepodobne kryptograficka data, klice nebo binarni data"
+        )
 
     return {
         "shannon_entropy": round(entropy, 4),
@@ -359,9 +465,11 @@ def analyze_entropy(raw: str) -> Dict[str, Any]:
         "length": len(s),
         "unique_chars": len(set(s)),
         "charset": {
-            "uppercase": has_upper, "lowercase": has_lower,
-            "digits": has_digit, "special": has_special,
-            "score": charset_score
+            "uppercase": has_upper,
+            "lowercase": has_lower,
+            "digits": has_digit,
+            "special": has_special,
+            "score": charset_score,
         },
         "verdict": verdict,
         "pravdepodobne_nahodne": ratio > 0.85,
@@ -372,13 +480,17 @@ def analyze_entropy(raw: str) -> Dict[str, Any]:
 # ── JWT INSPECTOR ─────────────────────────────────────────────────────────────
 def inspect_jwt(raw: str) -> Dict[str, Any]:
     import time as _time
+
     s = raw.strip()
     parts = s.split(".")
     if len(parts) != 3:
         return {"ok": False, "error": "Neni JWT (ocekavano 3 casti oddelene teckou)"}
-    def b64pad(x): return x + "=" * (-len(x) % 4)
+
+    def b64pad(x):
+        return x + "=" * (-len(x) % 4)
+
     try:
-        header  = json.loads(base64.urlsafe_b64decode(b64pad(parts[0])))
+        header = json.loads(base64.urlsafe_b64decode(b64pad(parts[0])))
         payload = json.loads(base64.urlsafe_b64decode(b64pad(parts[1])))
     except Exception as e:
         return {"ok": False, "error": f"Decode selhal: {e}"}
@@ -393,10 +505,14 @@ def inspect_jwt(raw: str) -> Dict[str, Any]:
     if "exp" in payload:
         exp = payload["exp"]
         if exp < now:
-            warnings.append(f"Token VYPRŠEL: {_time.strftime('%d.%m.%Y %H:%M:%S', _time.localtime(exp))}")
+            warnings.append(
+                f"Token VYPRŠEL: {_time.strftime('%d.%m.%Y %H:%M:%S', _time.localtime(exp))}"
+            )
         else:
             remaining = int(exp - now)
-            warnings.append(f"Platnost vyprsi za {remaining//3600}h {(remaining%3600)//60}m")
+            warnings.append(
+                f"Platnost vyprsi za {remaining//3600}h {(remaining%3600)//60}m"
+            )
     if "iat" in payload:
         iat = payload["iat"]
         payload["iat_human"] = _time.strftime("%d.%m.%Y %H:%M:%S", _time.localtime(iat))
@@ -420,21 +536,54 @@ def inspect_jwt(raw: str) -> Dict[str, Any]:
 
 # ── CREDENTIAL SCANNER ───────────────────────────────────────────────────────
 PATTERNS = [
-    ("api_key_generic",    r'(?i)(api[_-]?key|apikey)\s*[=:]\s*["\']?([A-Za-z0-9_\-]{20,})',     "API klic"),
-    ("jwt_token",          r'eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+',             "JWT token"),
-    ("aws_access_key",     r'AKIA[0-9A-Z]{16}',                                                    "AWS Access Key"),
-    ("aws_secret",         r'(?i)aws.{0,20}secret.{0,20}["\']?([A-Za-z0-9/+=]{40})',             "AWS Secret"),
-    ("github_pat",         r'ghp_[A-Za-z0-9]{36}',                                                "GitHub PAT"),
-    ("private_key_header", r'-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----',                    "Privatni klic PEM"),
-    ("password_field",     r'(?i)(password|passwd|heslo)\s*[=:]\s*["\']?([^\s"\']{4,})',          "Heslo v textu"),
-    ("ip_private",         r'\b(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)\b', "Privatni IP"),
-    ("email",              r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',                 "E-mail"),
-    ("uuid",               r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}', "UUID/GUID"),
-    ("hex_key_32",         r'\b[0-9a-fA-F]{64}\b',                                                "HEX klic 256bit"),
-    ("base64_secret",      r'(?i)(secret|token|key)\s*[=:]\s*["\']?([A-Za-z0-9+/]{32,}={0,2})',  "Base64 tajny retezec"),
-    ("connection_string",  r'(?i)(mongodb|mysql|postgres|redis|mssql)://[^\s"\']+',               "Connection string"),
-    ("bearer_token",       r'(?i)bearer\s+([A-Za-z0-9\-._~+/]+=*)',                              "Bearer token"),
+    (
+        "api_key_generic",
+        r'(?i)(api[_-]?key|apikey)\s*[=:]\s*["\']?([A-Za-z0-9_\-]{20,})',
+        "API klic",
+    ),
+    ("jwt_token", r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", "JWT token"),
+    ("aws_access_key", r"AKIA[0-9A-Z]{16}", "AWS Access Key"),
+    (
+        "aws_secret",
+        r'(?i)aws.{0,20}secret.{0,20}["\']?([A-Za-z0-9/+=]{40})',
+        "AWS Secret",
+    ),
+    ("github_pat", r"ghp_[A-Za-z0-9]{36}", "GitHub PAT"),
+    (
+        "private_key_header",
+        r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----",
+        "Privatni klic PEM",
+    ),
+    (
+        "password_field",
+        r'(?i)(password|passwd|heslo)\s*[=:]\s*["\']?([^\s"\']{4,})',
+        "Heslo v textu",
+    ),
+    (
+        "ip_private",
+        r"\b(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)\b",
+        "Privatni IP",
+    ),
+    ("email", r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}", "E-mail"),
+    (
+        "uuid",
+        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        "UUID/GUID",
+    ),
+    ("hex_key_32", r"\b[0-9a-fA-F]{64}\b", "HEX klic 256bit"),
+    (
+        "base64_secret",
+        r'(?i)(secret|token|key)\s*[=:]\s*["\']?([A-Za-z0-9+/]{32,}={0,2})',
+        "Base64 tajny retezec",
+    ),
+    (
+        "connection_string",
+        r'(?i)(mongodb|mysql|postgres|redis|mssql)://[^\s"\']+',
+        "Connection string",
+    ),
+    ("bearer_token", r"(?i)bearer\s+([A-Za-z0-9\-._~+/]+=*)", "Bearer token"),
 ]
+
 
 def scan_credentials(text: str) -> Dict[str, Any]:
     findings = []
@@ -443,13 +592,31 @@ def scan_credentials(text: str) -> Dict[str, Any]:
             snippet = m.group(0)
             if len(snippet) > 60:
                 snippet = snippet[:30] + "..." + snippet[-10:]
-            findings.append({
-                "typ": name,
-                "label": label,
-                "pozice": m.start(),
-                "snippet": snippet,
-                "zavaznost": "kriticka" if name in ("private_key_header","aws_access_key","aws_secret","github_pat") else "vysoka" if name in ("jwt_token","password_field","connection_string","bearer_token") else "stredni",
-            })
+            findings.append(
+                {
+                    "typ": name,
+                    "label": label,
+                    "pozice": m.start(),
+                    "snippet": snippet,
+                    "zavaznost": "kriticka"
+                    if name
+                    in (
+                        "private_key_header",
+                        "aws_access_key",
+                        "aws_secret",
+                        "github_pat",
+                    )
+                    else "vysoka"
+                    if name
+                    in (
+                        "jwt_token",
+                        "password_field",
+                        "connection_string",
+                        "bearer_token",
+                    )
+                    else "stredni",
+                }
+            )
     findings.sort(key=lambda x: x["pozice"])
     return {
         "ok": True,
@@ -463,6 +630,7 @@ def scan_credentials(text: str) -> Dict[str, Any]:
 # ── COMPARISON VIEW ───────────────────────────────────────────────────────────
 def compare_identifiers(raw_a: str, raw_b: str) -> Dict[str, Any]:
     from services.workbench_service import ingest_identifier
+
     a = ingest_identifier(raw_a)
     b = ingest_identifier(raw_b)
     diff = []
@@ -476,7 +644,8 @@ def compare_identifiers(raw_a: str, raw_b: str) -> Dict[str, Any]:
         if va != vb:
             diff.append(f"{k}: A={va} vs B={vb}")
     return {
-        "a": a.to_dict(), "b": b.to_dict(),
+        "a": a.to_dict(),
+        "b": b.to_dict(),
         "shoda_typu": a.type == b.type,
         "shoda_normalized": a.normalized == b.normalized,
         "rozdily": diff,
@@ -487,7 +656,7 @@ def compare_identifiers(raw_a: str, raw_b: str) -> Dict[str, Any]:
 # ── HEX DUMP VIEWER ──────────────────────────────────────────────────────────
 def hex_dump_view(raw: str) -> Dict[str, Any]:
     """Analyza libovolneho hex retezce - offset tabulka, ASCII preview, detekce hlavicek."""
-    clean = re.sub(r'[^0-9a-fA-F]', '', raw)
+    clean = re.sub(r"[^0-9a-fA-F]", "", raw)
     if len(clean) % 2 != 0:
         clean = clean[:-1]
     if not clean:
@@ -496,14 +665,16 @@ def hex_dump_view(raw: str) -> Dict[str, Any]:
     data = bytes.fromhex(clean)
     lines = []
     for i in range(0, len(data), 16):
-        chunk = data[i:i+16]
-        hex_part = ' '.join(f'{b:02X}' for b in chunk)
-        ascii_part = ''.join(chr(b) if 32 <= b < 127 else '.' for b in chunk)
-        lines.append({
-            "offset": f"{i:04X}",
-            "hex": hex_part,
-            "ascii": ascii_part,
-        })
+        chunk = data[i : i + 16]
+        hex_part = " ".join(f"{b:02X}" for b in chunk)
+        ascii_part = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
+        lines.append(
+            {
+                "offset": f"{i:04X}",
+                "hex": hex_part,
+                "ascii": ascii_part,
+            }
+        )
 
     # Detekce znamych hlavicek
     signatures = {
@@ -527,8 +698,11 @@ def hex_dump_view(raw: str) -> Dict[str, Any]:
     # Shannon entropie dat
     if data:
         from collections import Counter
+
         counts = Counter(data)
-        entropy = -sum((c/len(data)) * math.log2(c/len(data)) for c in counts.values())
+        entropy = -sum(
+            (c / len(data)) * math.log2(c / len(data)) for c in counts.values()
+        )
     else:
         entropy = 0.0
 
@@ -538,7 +712,11 @@ def hex_dump_view(raw: str) -> Dict[str, Any]:
         "lines": lines,
         "signature": detected_sig,
         "entropy": round(entropy, 3),
-        "entropy_verdict": "nahodny/sifrovany" if entropy > 7.0 else "strukturovany" if entropy < 4.0 else "smiseny",
+        "entropy_verdict": "nahodny/sifrovany"
+        if entropy > 7.0
+        else "strukturovany"
+        if entropy < 4.0
+        else "smiseny",
         "raw_hex": clean.upper(),
     }
 
@@ -546,7 +724,7 @@ def hex_dump_view(raw: str) -> Dict[str, Any]:
 # ── URL DECODER / ANALYZER ────────────────────────────────────────────────────
 def url_decode_analyze(raw: str) -> Dict[str, Any]:
     """Dekodovani a forenzni analyza URL - parametry, tokeny, rizika."""
-    from urllib.parse import urlparse, parse_qs, unquote, unquote_plus
+    from urllib.parse import urlparse, parse_qs, unquote
     import base64 as b64
 
     # Postupne dekodovat %xx
@@ -568,7 +746,7 @@ def url_decode_analyze(raw: str) -> Dict[str, Any]:
             "scheme": parsed.scheme,
             "host": parsed.netloc,
             "path": parsed.path,
-            "params": {k: v[0] if len(v)==1 else v for k,v in params.items()},
+            "params": {k: v[0] if len(v) == 1 else v for k, v in params.items()},
             "fragment": parsed.fragment,
         }
 
@@ -578,23 +756,36 @@ def url_decode_analyze(raw: str) -> Dict[str, Any]:
         for k, vals in params.items():
             v = vals[0] if vals else ""
             # JWT v parametru?
-            if v.count('.') == 2 and len(v) > 50:
+            if v.count(".") == 2 and len(v) > 50:
                 interesting_params.append({"param": k, "hint": "mozny JWT token"})
                 risks.append(f"Parametr '{k}' obsahuje JWT-like hodnotu")
             # Base64?
-            if len(v) > 8 and all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=' for c in v):
+            if len(v) > 8 and all(
+                c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
+                for c in v
+            ):
                 try:
-                    dec = b64.b64decode(v + '===').decode('utf-8', 'ignore')
+                    dec = b64.b64decode(v + "===").decode("utf-8", "ignore")
                     if any(c.isprintable() and not c.isspace() for c in dec[:20]):
-                        interesting_params.append({"param": k, "hint": "base64", "decoded": dec[:80]})
+                        interesting_params.append(
+                            {"param": k, "hint": "base64", "decoded": dec[:80]}
+                        )
                 except Exception:
                     pass
             # Redirect?
             kl = k.lower()
-            if kl in ('redirect', 'return', 'next', 'url', 'goto', 'redirect_uri', 'callback'):
+            if kl in (
+                "redirect",
+                "return",
+                "next",
+                "url",
+                "goto",
+                "redirect_uri",
+                "callback",
+            ):
                 risks.append(f"Open redirect parametr: '{k}'")
             # SQL injection znaky?
-            if any(s in v for s in ("'", '"', '--', 'OR 1', 'UNION', 'SELECT')):
+            if any(s in v for s in ("'", '"', "--", "OR 1", "UNION", "SELECT")):
                 risks.append(f"Mozny SQLi v parametru '{k}'")
 
         result["interesting_params"] = interesting_params
@@ -615,15 +806,16 @@ def checksum_lab(raw: str, mode: str = "auto") -> Dict[str, Any]:
     results: Dict[str, Any] = {"input": raw, "mode": mode, "checksums": {}}
 
     # Standardni hashe (vzdy)
-    raw_b = raw.encode('utf-8')
+    raw_b = raw.encode("utf-8")
     results["checksums"]["md5"] = hashlib.md5(raw_b).hexdigest()
     results["checksums"]["sha1"] = hashlib.sha1(raw_b).hexdigest()
     results["checksums"]["sha256"] = hashlib.sha256(raw_b).hexdigest()
-    results["checksums"]["crc32"] = format(binascii.crc32(raw_b) & 0xFFFFFFFF, '08X')
+    results["checksums"]["crc32"] = format(binascii.crc32(raw_b) & 0xFFFFFFFF, "08X")
 
     # Luhn (kreditni karty, IMEI)
-    digits = re.sub(r'\D', '', raw)
-    if digits and (mode in ('auto', 'luhn')):
+    digits = re.sub(r"\D", "", raw)
+    if digits and (mode in ("auto", "luhn")):
+
         def luhn_check(n):
             s = 0
             odd = True
@@ -631,17 +823,19 @@ def checksum_lab(raw: str, mode: str = "auto") -> Dict[str, Any]:
                 x = int(d)
                 if not odd:
                     x *= 2
-                    if x > 9: x -= 9
+                    if x > 9:
+                        x -= 9
                 s += x
                 odd = not odd
             return s % 10 == 0
+
         luhn_valid = luhn_check(digits)
         results["checksums"]["luhn"] = {"digits": digits, "valid": luhn_valid}
 
     # EAN checksum
-    if len(digits) in (8, 13) and (mode in ('auto', 'ean')):
+    if len(digits) in (8, 13) and (mode in ("auto", "ean")):
         weights = [1, 3] * 10
-        total = sum(int(d) * w for d, w in zip(digits[:-1], weights[:len(digits)-1]))
+        total = sum(int(d) * w for d, w in zip(digits[:-1], weights[: len(digits) - 1]))
         check_digit = (10 - (total % 10)) % 10
         results["checksums"]["ean"] = {
             "digits": digits,
@@ -651,7 +845,7 @@ def checksum_lab(raw: str, mode: str = "auto") -> Dict[str, Any]:
         }
 
     # GTIN-14
-    if len(digits) == 14 and (mode in ('auto', 'gtin14')):
+    if len(digits) == 14 and (mode in ("auto", "gtin14")):
         weights = [3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3, 1, 3]
         total = sum(int(d) * w for d, w in zip(digits[:-1], weights))
         check_digit = (10 - (total % 10)) % 10
@@ -662,7 +856,13 @@ def checksum_lab(raw: str, mode: str = "auto") -> Dict[str, Any]:
         }
 
     # ISBN-13 (= EAN-13 s prefixem 978/979)
-    if len(digits) == 13 and digits[:3] in ('978', '979') and (mode in ('auto', 'isbn')):
-        results["checksums"]["isbn13_valid"] = results["checksums"].get("ean", {}).get("valid", False)
+    if (
+        len(digits) == 13
+        and digits[:3] in ("978", "979")
+        and (mode in ("auto", "isbn"))
+    ):
+        results["checksums"]["isbn13_valid"] = (
+            results["checksums"].get("ean", {}).get("valid", False)
+        )
 
     return results

@@ -3,7 +3,14 @@
 
 from flask import Blueprint, jsonify, session, Response
 from routes.helpers import require_role, body
-from services.auth_service import list_users, create_user, set_role, toggle_active, delete_user, reset_password
+from services.auth_service import (
+    list_users,
+    create_user,
+    set_role,
+    toggle_active,
+    delete_user,
+    reset_password,
+)
 from services.audit_service import write as audit_write, list_entries as audit_list
 import csv
 import io
@@ -23,7 +30,9 @@ def admin_user_create():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
     try:
-        res = create_user(body().get("username"), body().get("password"), body().get("role", "viewer"))
+        res = create_user(
+            body().get("username"), body().get("password"), body().get("role", "viewer")
+        )
         audit_write("create_user", session.get("username"), res["username"])
         return jsonify(res), 201
     except ValueError as e:
@@ -36,7 +45,11 @@ def admin_user_role():
         return jsonify({"error": "Vyžadována role admin."}), 403
     try:
         res = set_role(body().get("username"), body().get("role", "viewer"))
-        audit_write("set_role", session.get("username"), f"{body().get('username')}->{body().get('role')}")
+        audit_write(
+            "set_role",
+            session.get("username"),
+            f"{body().get('username')}->{body().get('role')}",
+        )
         return jsonify(res)
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
@@ -91,11 +104,11 @@ def api_audit_export():
         return jsonify({"error": "Vyžadována role admin."}), 403
     si = io.StringIO()
     cw = csv.writer(si)
-    cw.writerow(['at', 'action', 'actor', 'detail'])
+    cw.writerow(["at", "action", "actor", "detail"])
     for r in audit_list():
-        cw.writerow([r.get('at'), r.get('action'), r.get('actor'), r.get('detail')])
+        cw.writerow([r.get("at"), r.get("action"), r.get("actor"), r.get("detail")])
     return Response(
-        si.getvalue().encode('utf-8-sig'),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=audit.csv'}
+        si.getvalue().encode("utf-8-sig"),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=audit.csv"},
     )

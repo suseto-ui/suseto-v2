@@ -3,7 +3,7 @@
 
 from flask import Blueprint, jsonify, request, Response, session
 from routes.helpers import current_user, require_role, body
-from services.timeline_service import add as timeline_add, list_for as timeline_list
+from services.timeline_service import list_for as timeline_list
 from services.location_service import list_locations, add_location
 from services.audit_service import write as audit_write, list_entries as audit_list
 from services.auth_service import list_users
@@ -29,13 +29,21 @@ def api_timeline_export():
         return jsonify({"error": "Přihlas se."}), 401
     si = io.StringIO()
     cw = csv.writer(si)
-    cw.writerow(['at', 'action', 'actor', 'asset_key', 'detail'])
+    cw.writerow(["at", "action", "actor", "asset_key", "detail"])
     for r in timeline_list(None):
-        cw.writerow([r.get('at'), r.get('action'), r.get('actor'), r.get('asset_key'), r.get('detail')])
+        cw.writerow(
+            [
+                r.get("at"),
+                r.get("action"),
+                r.get("actor"),
+                r.get("asset_key"),
+                r.get("detail"),
+            ]
+        )
     return Response(
-        si.getvalue().encode('utf-8-sig'),
-        mimetype='text/csv',
-        headers={'Content-Disposition': 'attachment; filename=timeline.csv'}
+        si.getvalue().encode("utf-8-sig"),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=timeline.csv"},
     )
 
 
@@ -51,8 +59,11 @@ def api_locations_add():
     if not require_role("admin", "operator"):
         return jsonify({"error": "Vyžadována role operator nebo admin."}), 403
     res = add_location(
-        body().get("name", ""), body().get("building", ""),
-        body().get("room", ""), body().get("shelf", ""), body().get("slot", "")
+        body().get("name", ""),
+        body().get("building", ""),
+        body().get("room", ""),
+        body().get("shelf", ""),
+        body().get("slot", ""),
     )
     audit_write("add_location", session.get("username"), res["name"])
     return jsonify(res), 201
@@ -61,9 +72,22 @@ def api_locations_add():
 @timeline_bp.get("/api/v1/dashboard")
 def dashboard_data():
     from services.registry_store import profiles, items
+
     all_items = items()
-    states = {x: sum(1 for i in all_items if i["status"] == x) for x in ("active", "reserved", "retired")}
-    return jsonify({"total": len(all_items), "states": states, "profiles": len(profiles()), "recent": sorted(all_items, key=lambda x: x.get("updated_at", ""), reverse=True)[:8]})
+    states = {
+        x: sum(1 for i in all_items if i["status"] == x)
+        for x in ("active", "reserved", "retired")
+    }
+    return jsonify(
+        {
+            "total": len(all_items),
+            "states": states,
+            "profiles": len(profiles()),
+            "recent": sorted(
+                all_items, key=lambda x: x.get("updated_at", ""), reverse=True
+            )[:8],
+        }
+    )
 
 
 @timeline_bp.get("/api/v1/dashboard/stats")
@@ -77,9 +101,9 @@ def api_dashboard_stats():
     today = datetime.datetime.now(datetime.timezone.utc).date()
     scans_by_date = defaultdict(int)
     for t in timeline:
-        if t.get('action') == 'scan':
+        if t.get("action") == "scan":
             try:
-                d = datetime.datetime.fromisoformat(t['at']).date()
+                d = datetime.datetime.fromisoformat(t["at"]).date()
                 if 0 <= (today - d).days < 7:
                     scans_by_date[d.isoformat()] += 1
             except:
@@ -88,11 +112,18 @@ def api_dashboard_stats():
     for i in range(6, -1, -1):
         d = (today - datetime.timedelta(days=i)).isoformat()
         chart_data.append({"date": d, "count": scans_by_date.get(d, 0)})
-    return jsonify({
-        "kpis": {"users": users, "locations": locs, "timeline_events": len(timeline), "audit_events": len(audit)},
-        "chart": chart_data,
-        "recent": timeline[:10]
-    })
+    return jsonify(
+        {
+            "kpis": {
+                "users": users,
+                "locations": locs,
+                "timeline_events": len(timeline),
+                "audit_events": len(audit),
+            },
+            "chart": chart_data,
+            "recent": timeline[:10],
+        }
+    )
 
 
 @timeline_bp.get("/api/v1/backup")
@@ -100,7 +131,11 @@ def make_backup():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
     audit_write("backup", session.get("username"), "")
-    return Response(backup(), mimetype="application/zip", headers={"Content-Disposition": "attachment; filename=suseto-backup.zip"})
+    return Response(
+        backup(),
+        mimetype="application/zip",
+        headers={"Content-Disposition": "attachment; filename=suseto-backup.zip"},
+    )
 
 
 @timeline_bp.post("/api/v1/backup/restore")
