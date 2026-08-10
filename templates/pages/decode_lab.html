@@ -5,22 +5,37 @@
   <div class="panel">
     <div class="eyebrow">Decode Pipeline & Pattern Library</div>
     <h1>Decode Lab</h1>
-    <p class="lead">Zkusí bezpečné převody payloadu a ukáže nejpravděpodobnější interpretace a vzory.</p>
+    <p class="lead">Zadej payload, rozlož ho přes decode chain a porovnej vzory i více payloadů najednou.</p>
   </div>
 </section>
+
 <section class="aidc-layout">
   <form id="decode-form" class="panel">
-    <label for="decode-payload">Payload</label>
-    <textarea id="decode-payload"></textarea>
-    <button class="btn btn-primary" type="submit">Analyzovat chain</button>
-    <label for="decode-many">Více payloadů pro Pattern Library</label>
-    <textarea id="decode-many" placeholder="Jeden payload na řádek"></textarea>
-    <button type="button" id="decode-library-btn" class="btn btn-secondary">Pattern Library</button>
+    <h2>Payload</h2>
+    <label for="payload">Vstupní payload</label>
+    <textarea id="payload" name="payload" placeholder="Vlož text, base64, URL nebo hex"></textarea>
+    <div class="form-actions">
+      <button class="btn btn-primary" type="submit">Analyzovat chain</button>
+      <button class="btn btn-secondary" type="button" id="sample">Sample</button>
+    </div>
   </form>
+
   <article class="panel">
     <h2>Výstup</h2>
-    <div id="decode-out" class="stack"><div class="result-chip"><strong>Připraveno</strong><br><small>Vlož payload a spusť analýzu.</small></div></div>
+    <div id="decode-output" class="stack"></div>
   </article>
 </section>
+
+<section class="panel">
+  <h2>Pattern Library</h2>
+  <label for="multi-payloads">Více payloadů pro porovnání</label>
+  <textarea id="multi-payloads" placeholder="Jeden payload na řádek"></textarea>
+  <div class="form-actions">
+    <button class="btn btn-secondary" type="button" id="pattern-library">Pattern Library</button>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
 <script src="{{ url_for('static', filename='js/decode_lab.js') }}"></script>
 {% endblock %}
