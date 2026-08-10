@@ -1,4 +1,3 @@
-import sys
 import os
 import logging
 from flask import Flask, jsonify, render_template, request, session, Response
@@ -31,7 +30,7 @@ def create_app():
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
 
-    # Registrace Blueprintů - TYHLE OBSLUHUJÍ VŠECHNU LOGIKU
+    # Registrace Blueprintů
     app.register_blueprint(auth_bp)
     app.register_blueprint(aidc_bp)
     app.register_blueprint(admin_bp)
@@ -47,14 +46,20 @@ def create_app():
     # Globální Error Handlery
     @app.errorhandler(404)
     def page_not_found(e):
+        # Pokud požadavek míří na API (url začíná na /api/), musíme vrátit JSON chybu, 
+        # jinak to rozbije JavaScriptové funkce, které čekají JSON, ale dostanou HTML string.
+        if request.path.startswith('/api/'):
+            return jsonify({"error": "Endpoint nenalezen (404)"}), 404
         return render_template('pages/rozcestnik.html', error_message="Stránka nenalezena (404)."), 404
 
     @app.errorhandler(500)
     def internal_server_error(e):
+        if request.path.startswith('/api/'):
+            return jsonify({"error": "Interní chyba serveru (500)"}), 500
         return render_template('pages/rozcestnik.html', error_message="Interní chyba serveru (500)."), 500
 
     # -------------------------------------------------------------
-    # FRONTEND UI STRÁNKY - OBSLUHUJÍ RENDER TEMPLATES
+    # FRONTEND UI STRÁNKY
     # -------------------------------------------------------------
 
     @app.route("/")

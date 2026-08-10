@@ -21,16 +21,19 @@
                 SUSETO
             </div>
             
-            <a href="{{ url_for('home') }}"{% if request.path == '/' %} class="active"{% endif %}>Rozcestník</a>
-            <a href="/navigator"{% if request.path == '/navigator' %} class="active"{% endif %}>Navigator</a>
-            <a href="/timeline"{% if request.path == '/timeline' %} class="active"{% endif %}>Timeline</a>
-            <a href="/inventory"{% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
-            <a href="/runs"{% if request.path == '/runs' %} class="active"{% endif %}>Runs</a>
-            <a href="/registry"{% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
-            <a href="/aidc-studio"{% if request.path == '/aidc-studio' %} class="active"{% endif %}>AIDC</a>
-            <a href="/decode-lab"{% if request.path == '/decode-lab' %} class="active"{% endif %}>Decode</a>
-            <a href="/debug"{% if request.path == '/debug' %} class="active"{% endif %}>Debug</a>
-            <a href="/admin"{% if request.path == '/admin' %} class="active"{% endif %}>Admin</a>
+            <!-- Všechny aplikace v menu, včetně Mobile a Scanner Lab -->
+            <a href="/" {% if request.path == '/' %} class="active"{% endif %}>Rozcestník</a>
+            <a href="/navigator" {% if request.path == '/navigator' %} class="active"{% endif %}>Navigator</a>
+            <a href="/timeline" {% if request.path == '/timeline' %} class="active"{% endif %}>Timeline</a>
+            <a href="/inventory" {% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
+            <a href="/runs" {% if request.path == '/runs' %} class="active"{% endif %}>Runs</a>
+            <a href="/registry" {% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
+            <a href="/scanner-lab" {% if request.path == '/scanner-lab' %} class="active"{% endif %}>Scanner</a>
+            <a href="/mobile" {% if request.path == '/mobile' %} class="active"{% endif %}>Mobile</a>
+            <a href="/aidc-studio" {% if request.path == '/aidc-studio' %} class="active"{% endif %}>AIDC</a>
+            <a href="/decode-lab" {% if request.path == '/decode-lab' %} class="active"{% endif %}>Decode</a>
+            <a href="/debug" {% if request.path == '/debug' %} class="active"{% endif %}>Debug</a>
+            <a href="/admin" {% if request.path == '/admin' %} class="active"{% endif %}>Admin</a>
             
             <div class="nav-controls">
                 <a href="/login" style="margin-right: 8px;">Logout</a>
