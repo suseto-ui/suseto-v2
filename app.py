@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask, jsonify, render_template, request, session, Response
 from routes.helpers import current_user, require_role, body
 
@@ -16,6 +17,8 @@ from services.database import db
 
 from services.audit_service import write as audit_write
 from services.auth_service import verify
+
+logging.basicConfig(level=logging.DEBUG)
 
 # Vytvoření aplikace
 app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -42,7 +45,7 @@ from services.workbench_routes import register_workbench
 register_workbench(app)
 
 
-# Globální Error Handlery (aby na uživatele nepadaly syrové tracebacky)
+# Globální Error Handlery
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('pages/rozcestnik.html', error_message="Stránka nenalezena (404)."), 404
@@ -53,7 +56,7 @@ def internal_server_error(e):
 
 
 # -------------------------------------------------------------
-# FRONTEND UI STRÁNKY
+# FRONTEND UI STRÁNKY (Opravené cesty s podtržítky pro šablony)
 # -------------------------------------------------------------
 
 @app.route("/")
@@ -70,15 +73,15 @@ def generator():
 
 @app.route("/legacy-lab")
 def legacy_lab():
-    return render_template("pages/legacylab.html")
+    return render_template("pages/legacy_lab.html")
 
 @app.route("/state-lab")
 def state_lab():
-    return render_template("pages/statelab.html")
+    return render_template("pages/state_lab.html")
 
 @app.route("/aidc-studio")
 def aidc_studio():
-    return render_template("pages/aidcstudio.html")
+    return render_template("pages/aidc_studio.html")
 
 @app.route("/login")
 def login_page():
@@ -98,7 +101,7 @@ def profile_page():
 
 @app.route("/decode-lab")
 def decode_lab():
-    return render_template("pages/decodelab.html")
+    return render_template("pages/decode_lab.html")
 
 @app.route("/locations")
 def locations_page():
@@ -110,7 +113,7 @@ def status_page():
 
 @app.route("/expected-audit")
 def expected_audit_page():
-    return render_template("pages/expectedaudit.html")
+    return render_template("pages/expected_audit.html")
 
 @app.route("/mobile")
 def mobile_page():
@@ -130,19 +133,19 @@ def inventory_page():
 
 @app.route("/insight-lab")
 def insight_lab():
-    return render_template("pages/insightlab.html")
+    return render_template("pages/insight_lab.html")
 
 @app.route("/label-designer")
 def label_designer():
-    return render_template("pages/labeldesigner.html")
+    return render_template("pages/label_designer.html")
 
 @app.route("/backup-center")
 def backup_center():
-    return render_template("pages/backupcenter.html")
+    return render_template("pages/backup_center.html")
 
 @app.route("/transform-lab")
 def transform_lab():
-    return render_template("pages/transformlab.html")
+    return render_template("pages/transform_lab.html")
 
 @app.route("/dashboard")
 def dashboard():
@@ -154,19 +157,19 @@ def registry():
 
 @app.route("/label-profiles")
 def label_profiles():
-    return render_template("pages/labelprofiles.html")
+    return render_template("pages/label_profiles.html")
 
 @app.route("/aidc-batch")
 def aidc_batch():
-    return render_template("pages/aidcbatch.html")
+    return render_template("pages/aidc_batch.html")
 
 @app.route("/scanner-lab")
 def scanner_lab():
-    return render_template("pages/scannerlab.html")
+    return render_template("pages/scanner_lab.html")
 
 @app.route("/auth-lab")
 def auth_lab():
-    return render_template("pages/authlab.html")
+    return render_template("pages/auth_lab.html")
 
 @app.route("/runs")
 def runs_page():
@@ -176,6 +179,10 @@ def runs_page():
 # -------------------------------------------------------------
 # HLAVNÍ GLOBÁLNÍ API (které zůstaly v app.py)
 # -------------------------------------------------------------
+
+@app.get("/health")
+def health():
+    return jsonify({"status": "ok", "user": current_user()})
 
 @app.get("/api/v1/auth/me")
 def auth_me():
@@ -200,9 +207,17 @@ def auth_logout():
     session.clear()
     return jsonify({"ok": True})
 
+@app.get("/api/v1/debug/routes")
+def api_debug_routes():
+    return jsonify({"routes": sorted([str(r.rule) for r in app.url_map.iter_rules()])})
+
+@app.post("/api/v1/debug/ping")
+def api_debug_ping():
+    return jsonify({"ok": True, "received": body()})
+
 # Vytvoření DB tabulek, pokud neexistují
 with app.app_context():
     db.create_all()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
