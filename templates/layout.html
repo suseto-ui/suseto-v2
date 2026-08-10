@@ -22,18 +22,18 @@
             </div>
             
             <a href="{{ url_for('home') }}"{% if request.path == '/' %} class="active"{% endif %}>Rozcestník</a>
-            <a href="{{ url_for('navigator') }}"{% if request.path == '/navigator' %} class="active"{% endif %}>Navigator</a>
-            <a href="{{ url_for('core.timeline_page') }}"{% if request.path == '/timeline' %} class="active"{% endif %}>Timeline</a>
-            <a href="{{ url_for('inventory_page') }}"{% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
-            <a href="{{ url_for('runs_page') }}"{% if request.path == '/runs' %} class="active"{% endif %}>Runs</a>
-            <a href="{{ url_for('registry') }}"{% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
-            <a href="{{ url_for('aidc_studio') }}"{% if request.path == '/aidc' %} class="active"{% endif %}>AIDC</a>
-            <a href="{{ url_for('decode_lab') }}"{% if request.path == '/decode' %} class="active"{% endif %}>Decode</a>
-            <a href="{{ url_for('debug_page') }}"{% if request.path == '/debug' %} class="active"{% endif %}>Debug</a>
-            <a href="{{ url_for('admin_page') }}"{% if request.path == '/admin' %} class="active"{% endif %}>Admin</a>
+            <a href="/navigator"{% if request.path == '/navigator' %} class="active"{% endif %}>Navigator</a>
+            <a href="/timeline"{% if request.path == '/timeline' %} class="active"{% endif %}>Timeline</a>
+            <a href="/inventory"{% if request.path == '/inventory' %} class="active"{% endif %}>Inventory</a>
+            <a href="/runs"{% if request.path == '/runs' %} class="active"{% endif %}>Runs</a>
+            <a href="/registry"{% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
+            <a href="/aidc-studio"{% if request.path == '/aidc-studio' %} class="active"{% endif %}>AIDC</a>
+            <a href="/decode-lab"{% if request.path == '/decode-lab' %} class="active"{% endif %}>Decode</a>
+            <a href="/debug"{% if request.path == '/debug' %} class="active"{% endif %}>Debug</a>
+            <a href="/admin"{% if request.path == '/admin' %} class="active"{% endif %}>Admin</a>
             
             <div class="nav-controls">
-                <a href="{{ url_for('auth_logout') }}" style="margin-right: 8px;">Logout</a>
+                <a href="/login" style="margin-right: 8px;">Logout</a>
                 <button class="theme-toggle" id="themeToggle" aria-label="Přepnout motiv">
                     <i class="fas fa-moon"></i>
                 </button>
