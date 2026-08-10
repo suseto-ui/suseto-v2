@@ -4,162 +4,166 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suseto</title>
+    
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
     <style>
+        /* Úprava struktury Menu */
         .navbar {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
-            max-width: 1200px;
+            max-width: 1300px;
             margin: 0 auto;
             padding: 14px 20px;
-            flex-wrap: wrap;
         }
-        .brand {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 800;
-            letter-spacing: 0.06em;
-            white-space: nowrap;
-            flex: 0 0 auto;
-        }
+
         .nav-links {
             display: flex;
+            gap: 4px;
             align-items: center;
             flex-wrap: wrap;
-            gap: 6px;
-            flex: 1 1 auto;
             justify-content: center;
         }
-        .nav-links a,
-        .nav-controls a {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 999px;
-            text-decoration: none;
+
+        .nav-links a {
+            padding: 6px 14px;
+            font-size: 0.9rem;
             color: var(--muted);
-            transition: background .18s ease, color .18s ease, transform .18s ease;
-            line-height: 1;
-            font-size: .92rem;
-            white-space: nowrap;
+            border-radius: 20px;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            background: transparent;
         }
-        .nav-links a:hover,
-        .nav-controls a:hover {
-            background: rgba(255,255,255,.06);
+
+        .nav-links a:hover {
             color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
         }
+
         .nav-links a.active {
-            background: rgba(124, 92, 255, .22);
             color: var(--text);
-            box-shadow: inset 0 0 0 1px rgba(124, 92, 255, .25);
+            background: var(--accent);
+            box-shadow: 0 4px 12px rgba(124, 92, 255, 0.25);
+            font-weight: 500;
         }
+
         .nav-divider {
             width: 1px;
-            height: 18px;
+            height: 20px;
             background: var(--line);
-            margin: 0 4px;
-            flex: 0 0 auto;
+            margin: 0 6px;
         }
+
+        .nav-group-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: rgba(255, 255, 255, 0.3);
+            margin: 0 4px 0 8px;
+            user-select: none;
+        }
+
+        /* Systém a Control */
         .nav-controls {
             display: flex;
             align-items: center;
-            gap: 10px;
-            flex: 0 0 auto;
-            margin-left: auto;
+            gap: 16px;
         }
-        .theme-toggle {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            border: 1px solid var(--line);
-            background: rgba(255,255,255,.04);
+
+        .nav-controls a {
+            font-size: 0.9rem;
             color: var(--muted);
-            cursor: pointer;
+            text-decoration: none;
+            transition: 0.2s;
         }
-        .theme-toggle:hover {
+
+        .nav-controls a:hover,
+        .nav-controls a.active {
             color: var(--text);
-            background: rgba(255,255,255,.08);
         }
-        @media (max-width: 980px) {
-            .navbar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .brand,
-            .nav-controls {
-                justify-content: center;
-            }
-            .nav-links {
-                justify-content: flex-start;
-                overflow-x: auto;
-                flex-wrap: nowrap;
-                padding-bottom: 4px;
-                -webkit-overflow-scrolling: touch;
-            }
-            .nav-divider {
-                display: none;
-            }
-            .nav-links a {
-                flex: 0 0 auto;
-            }
-            .nav-controls {
-                width: 100%;
-                margin-left: 0;
-                justify-content: center;
-                padding-top: 10px;
-                border-top: 1px solid var(--line);
-            }
+
+        @media (max-width: 1024px) {
+            .navbar { flex-direction: column; gap: 16px; }
+            .nav-links { justify-content: center; }
+            .nav-divider { display: none; }
+            .nav-group-label { display: none; }
+            .nav-controls { width: 100%; justify-content: center; border-top: 1px solid var(--line); padding-top: 12px; }
         }
     </style>
+
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     <header>
-        <nav class="navbar">
+        <div class="navbar">
             <div class="brand">
                 <i class="fas fa-layer-group" style="color: var(--accent);"></i>
-                <span>SUSETO</span>
+                <span style="font-weight: 800; letter-spacing: 1px;">SUSETO</span>
             </div>
+            
             <div class="nav-links">
+                <!-- Přehledy -->
                 <a href="/" {% if request.path == '/' %} class="active"{% endif %}>Rozcestník</a>
                 <a href="/dashboard" {% if request.path == '/dashboard' %} class="active"{% endif %}>Dashboard</a>
-                <span class="nav-divider"></span>
+                
+                <div class="nav-divider"></div>
+                <span class="nav-group-label">Ops</span>
+
+                <!-- Ops & Akce -->
                 <a href="/scanner-lab" {% if request.path == '/scanner-lab' %} class="active"{% endif %}><i class="fas fa-barcode"></i> Scanner</a>
                 <a href="/mobile" {% if request.path == '/mobile' %} class="active"{% endif %}><i class="fas fa-mobile-alt"></i> Mobile</a>
                 <a href="/inventory" {% if request.path == '/inventory' %} class="active"{% endif %}><i class="fas fa-boxes"></i> Inventory</a>
-                <span class="nav-divider"></span>
-                <a href="/decode-lab" {% if request.path == '/decode-lab' %} class="active"{% endif %}>Decode Lab</a>
+                
+                <div class="nav-divider"></div>
+                <span class="nav-group-label">Analýza</span>
+
+                <!-- Analýzy a Výzkum -->
+                <a href="/decode-lab" {% if request.path == '/decode-lab' %} class="active"{% endif %}>Decode</a>
                 <a href="/navigator" {% if request.path == '/navigator' %} class="active"{% endif %}>Navigator</a>
-                <a href="/state-lab" {% if request.path == '/state-lab' %} class="active"{% endif %}>State Lab</a>
-                <a href="/transform-lab" {% if request.path == '/transform-lab' %} class="active"{% endif %}>Transform</a>
-                <span class="nav-divider"></span>
+                <a href="/state-lab" {% if request.path == '/state-lab' %} class="active"{% endif %}>State</a>
+                
+                <div class="nav-divider"></div>
+                <span class="nav-group-label">Záznamy</span>
+
+                <!-- Databáze a Data -->
                 <a href="/registry" {% if request.path == '/registry' %} class="active"{% endif %}>Registry</a>
                 <a href="/timeline" {% if request.path == '/timeline' %} class="active"{% endif %}>Timeline</a>
+                <a href="/expected-audit" {% if request.path == '/expected-audit' %} class="active"{% endif %}>Audit</a>
                 <a href="/runs" {% if request.path == '/runs' %} class="active"{% endif %}>Runs</a>
-                <span class="nav-divider"></span>
+                
+                <div class="nav-divider"></div>
+                <span class="nav-group-label">Experimenty</span>
+
+                <!-- Generování a pokročilé experimenty -->
                 <a href="/aidc-studio" {% if request.path == '/aidc-studio' %} class="active"{% endif %}>AIDC Studio</a>
                 <a href="/generator" {% if request.path == '/generator' %} class="active"{% endif %}>Generator</a>
+                <a href="/transform-lab" {% if request.path == '/transform-lab' %} class="active"{% endif %}>Transform</a>
+                <a href="/insight-lab" {% if request.path == '/insight-lab' %} class="active"{% endif %}>Insight</a>
+                
             </div>
+            
             <div class="nav-controls">
+                <!-- Systémové a globální nástroje -->
                 <a href="/admin" {% if request.path == '/admin' %} style="color: var(--text); font-weight: 500;"{% endif %}><i class="fas fa-cog"></i> Admin</a>
-                <a href="/login"><i class="fas fa-sign-out-alt"></i></a>
-                <button class="theme-toggle" id="themeToggle" aria-label="Přepnout motiv"><i class="fas fa-moon"></i></button>
+                <a href="/edu" {% if request.path == '/edu' %} class="active"{% endif %} title="Manuály"><i class="fas fa-book"></i></a>
+                <a href="/debug" {% if request.path == '/debug' %} class="active"{% endif %} title="Debug"><i class="fas fa-bug"></i></a>
+                <a href="/login" title="Odhlásit"><i class="fas fa-sign-out-alt"></i></a>
+                
+                <button class="theme-toggle" id="themeToggle" aria-label="Přepnout motiv">
+                    <i class="fas fa-moon"></i>
+                </button>
             </div>
-        </nav>
+        </div>
     </header>
+
     <main>
         <div class="card">
             {% block content %}{% endblock %}
         </div>
     </main>
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>
