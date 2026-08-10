@@ -175,10 +175,6 @@ def runs_page():
 # HLAVNÍ GLOBÁLNÍ API (které zůstaly v app.py)
 # -------------------------------------------------------------
 
-@app.get("/health")
-def health():
-    return jsonify({"status": "ok", "user": current_user()})
-
 @app.get("/api/v1/auth/me")
 def auth_me():
     return jsonify({"user": current_user()})
@@ -201,14 +197,6 @@ def auth_logout():
     audit_write("logout", session.get("username", "anonymous"), "")
     session.clear()
     return jsonify({"ok": True})
-
-@app.get("/api/v1/debug/routes")
-def api_debug_routes():
-    return jsonify({"routes": sorted([str(r.rule) for r in app.url_map.iter_rules()])})
-
-@app.post("/api/v1/debug/ping")
-def api_debug_ping():
-    return jsonify({"ok": True, "received": body()})
 
 # Vytvoření DB tabulek, pokud neexistují
 with app.app_context():
