@@ -1,11 +1,66 @@
-import json
-from datetime import datetime, timezone
-from pathlib import Path
-ROOT=Path(__file__).resolve().parent.parent/'data'; FILE=ROOT/'audit_log.json'
-def _now(): return datetime.now(timezone.utc).isoformat()
-def _load():
- try:return json.loads(FILE.read_text()) if FILE.exists() else []
- except Exception:return []
-def write(action, actor='system', detail=''):
- data=_load(); data.insert(0,{'at':_now(),'action':action,'actor':actor,'detail':str(detail)[:300]}); ROOT.mkdir(exist_ok=True); FILE.write_text(json.dumps(data[:500],ensure_ascii=False,indent=2))
-def list_entries(): return _load()[:200]
+# services/audit_service.py
+# Základní auditní služba – logování akcí (kdo co kdy udělal).
+
+from typing import Dict, Any, List, Optional
+from datetime import datetime
+import uuid
+
+
+class AuditService:
+    """Jednoduchý audit log pro backend.
+
+    Ukládá záznamy do paměti (list) – vhodné pro vývoj a rychlé ladění.
+    V produkci by mělo být napojeno na DB / externí logging systém.
+    """
+
+    def __init__(self):
+        self._entries: List[Dict[str, Any]] = []
+
+    def log_action(
+        self,
+        actor: str,
+        action: str,
+        target: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Zaznamená akci do audit logu."""
+        entry_id = str(uuid.uuid4())[:8]
+        entry = {
+            "id": entry_id,
+            "actor": actor,
+            "action": action,
+            "target": target,
+            "metadata": metadata or {},
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+        self._entries.append(entry)
+        return entry
+
+    def list_actions(
+        self,
+        limit: int = 100,
+        actor: Optional[str] = None,
+        action: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Vrátí seznam auditních záznamů."""
+        entries = self._entries
+        if actor:
+            entries = [e for e in entries if e["actor"] == actor]
+        if action:
+            entries = [e for e in entries if e["action"] == action]
+        entries.sort(key=lambda e: e["timestamp"], reverse=True)
+        return entries[:limit]
+
+    def clear(self) -> int:
+        """Vymaže všechny auditní záznamy."""
+        count = len(self._entries)
+        self._entries.clear()
+        return count
+
+    def count(self) -> int:
+        """Vrátí počet auditních záznamů."""
+        return len(self._entries)
+
+
+# Globální instance pro snadné použití
+audit_service = AuditService()

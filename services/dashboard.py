@@ -1,16 +1,30 @@
-"""
-Dashboard stats for Suseto.
-"""
+# services/dashboard.py
+# Služba pro data na dashboardu (přehledy, statistiky).
 
-def dashboard_stats():
-    return {
-        "kpis": [
-            {"label": "Total Scans", "value": 1247, "delta": 12},
-            {"label": "Unique Items", "value": 389, "delta": 5},
-            {"label": "Locations", "value": 4, "delta": 0},
-        ],
-        "chart": {
-            "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-            "values": [120, 150, 180, 220, 190, 240, 210],
+from typing import Dict, Any
+from datetime import datetime
+
+from .run_store import run_store
+from .operations_service import operations_service
+
+
+class DashboardService:
+    """Služba pro sestavení dat pro dashboard.
+
+    Čerpá z run_store, operations_service a dalších zdrojů.
+    """
+
+    def get_summary(self) -> Dict[str, Any]:
+        """Vrátí základní souhrn pro dashboard."""
+        runs_count = run_store.count_runs()
+        ops_count = operations_service.count()
+        now = datetime.utcnow().isoformat()
+        return {
+            "timestamp": now,
+            "runs_count": runs_count,
+            "operations_count": ops_count,
         }
-    }
+
+
+# Globální instance pro snadné použití
+dashboard_service = DashboardService()
