@@ -1,23 +1,113 @@
-import base64, datetime, hashlib, hmac, re
+# services/transform_service.py
+# Slu\u017eba pro transformaci dat (payloady, QR/1D obsah, atd.).
 
-def _b36(n):
- chars='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';out='0'
- if n:
-  out=''
-  while n:n,r=divmod(n,36);out=chars[r]+out
- return out
-def analyze(value,key=''):
- v=str(value or '')
- out={'input':v,'length':len(v),'utf8_hex':v.encode().hex().upper(),'binary':' '.join(f'{b:08b}' for b in v.encode()),'base64':base64.b64encode(v.encode()).decode()}
- try:out['base64_decoded']=base64.b64decode(v+'===').decode('utf-8')
- except Exception:out['base64_decoded']='—'
- if re.fullmatch(r'[0-9A-Fa-f]+',v or 'x') and len(v)%2==0:
-  try:out['hex_decoded']=bytes.fromhex(v).decode('utf-8')
-  except UnicodeDecodeError:out['hex_decoded']='(binární data)'
- else:out['hex_decoded']='—'
- if key:
-  raw=bytes(v,'utf-8');k=bytes(str(key),'utf-8');out['xor_hex']=bytes(b^k[i%len(k)] for i,b in enumerate(raw)).hex().upper();out['hmac_sha256']=hmac.new(k,raw,hashlib.sha256).hexdigest()
- return out
-def time_formats():
- now=datetime.datetime.now(datetime.timezone.utc);unix=int(now.timestamp());gps=unix-315964800+18
- return {'utc':now.isoformat(),'unix':unix,'unix_hex':f'{unix:X}','unix_base36':_b36(unix),'unix_binary':f'{unix:b}','gps_seconds':gps,'date':now.strftime('%Y-%m-%d'),'iso_week':now.strftime('%G-W%V-%u'),'day_of_year':now.strftime('%Y-%j')}
+import base64
+import binascii
+from typing import Dict, Any, List, Optional, Callable
+from urllib.parse import unquote, quote
+
+
+class TransformService:
+    """Slu\u017eba pro r\u016fzn\u00e9 transformace dat.
+
+    Podporuje:
+    - base64 encode/decode
+    - hex encode/decode
+    - URL encode/decode
+    - obecn\u00e9 transformace funkcemi
+    """
+
+    def decode_base64(self, data: str) -> Dict[str, Any]:
+        """Dek\u00f3duje base64 \u0159et\u011bzec na text."""
+        try:
+            decoded_bytes = base64.b64decode(data)
+            decoded_str = decoded_bytes.decode("utf-8")
+            return {"success": True, "result": decoded_str, "error": None}
+        except Exception as e:
+            return {"success": False, "result": None, "error": str(e)}
+
+    def encode_base64(self, data: str) -> Dict[str, Any]:
+        """Encoduje text do base64."""
+        try:
+            encoded_bytes = base64.b64encode(data.encode("utf-8"))
+            encoded_str = encoded_bytes.decode("ascii")
+            return {"success": True, "result": encoded_str, "error": None}
+        except Exception as e:
+            return {"success": False, "result": None, "error": str(e)}
+
+    def decode_hex(self, data: str) -> Dict[str, Any]:
+        """Dek\u00f3duje hex \u0159et\u011bzec na text."""
+        try:
+            decoded_bytes = binascii.unhexlify(data)
+            decoded_str = decoded_bytes.decode("utf-8")
+            return {"success": True, "result": decoded_str, "error": None}
+        except Exception as e:
+            return {"success": False, "result": None, "error": str(e)}
+
+    def encode_hex(self, data: str) -> Dict[str, Any]:
+        """Encoduje text do hex."""
+        try:
+            encoded_bytes = binascii.hexlify(data.encode("utf-8"))
+            encoded_str = encoded_bytes.decode("ascii")
+            return {"success": True, "result": encoded_str, "error": None}
+        except Exception as e:
+            return {"success": False, "result": None, "error": str(e)}
+
+    def decode_url(self, data: str) -> Dict[str, Any]:
+        """Dek\u00f3duje URL-encoded \u0159et\u011bzec."""
+        try:
+            decoded_str = unquote(data)
+            return {"success": True, "result": decoded_str, "error": None}
+        except Exception as e:
+            return {"success": False, "result": None, "error": str(e)}
+
+    def encode_url(self, data: str) -> Dict[str, Any]:
+        """Encoduje text pro URL."""
+        try:
+            encoded_str = quote(data)
+            return {"success": True, "result": encoded_str, "error": None}
+        except Exception as e:
+            return {"success": False, "result": None, "error": str(e)}
+
+    def transform(
+        self,
+        data: str,
+        transform_fn: Callable[[str], str],
+        name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Aplikuje obecnou transforma\u010dníıı funkci na data.
+
+        transform_fn: funkce, kter\u00e1 bere str a vrac\u00ed str.
+        name: voliteln\u00fd n\u00e1zev transformace (pro logov\u00e1n\u00ed).
+        """
+        try:
+            result = transform_fn(data)
+            return {
+                "success": True,
+                "result": result,
+                "error": None,
+                "name": name,
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "result": None,
+                "error": str(e),
+                "name": name,
+            }
+
+    def batch_transform(
+        self,
+        items: List[str],
+        transform_fn: Callable[[str], str],
+        name: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Aplikuje transformaci na seznam polo\u017eek."""
+        results = []
+        for item in items:
+            results.append(self.transform(item, transform_fn, name=name))
+        return results
+
+
+# Glob\u00e1ln\u00ed instance pro snadn\u00e9 pou\u017eit\u00ed
+transform_service = TransformService()
