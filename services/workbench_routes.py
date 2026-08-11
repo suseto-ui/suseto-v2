@@ -1,65 +1,49 @@
 # services/workbench_routes.py
-# Registers the /workbench page and /api/v1/workbench/* REST endpoints.
-from flask import Blueprint, request, jsonify, render_template
-from services.workbench_service import (
-    ingest_identifier,
-    run_analysis_pipeline,
-    run_reverse_engineering,
-    run_test_harness,
-)
+# API routy pro workbench – placeholder pro FastAPI/Flask endpointy.
 
-wb = Blueprint("workbench", __name__)
+from typing import Dict, Any, List
+
+from .workbench_service import workbench_service
+from .decision_engine import decision_engine
+from .operations_service import operations_service
 
 
-def _body():
-    return request.get_json(silent=True) or {}
+class WorkbenchRoutes:
+    """Routy pro workbench API.
+
+    Toto je vrstva mezi HTTP frameworkem (FastAPI/Flask) a workbench_service.
+    """
+
+    def __init__(self):
+        self._service = workbench_service
+        self._ops = operations_service
+
+    def list_jobs(self) -> List[Dict[str, Any]]:
+        """Vr\u00e1t\u00ed seznam workbench \u00faloh."""
+        return self._service.list_jobs()
+
+    def create_job(self, job_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Vytvoř\u00ed novou workbench \u00falohu."""
+        # Rozhodnut\u00ed, zda payload zpracovat
+        decision = decision_engine.evaluate(str(payload))
+        if decision["decision"] == "reject":
+            return {"success": False, "error": decision["reason"], "job": None}
+
+        job = self._service.create_job(job_type, payload)
+        return {"success": True, "job": job}
+
+    def get_job(self, job_id: str) -> Dict[str, Any]:
+        """Z\u00edsk\u00e1 detail \u00falohy."""
+        job = self._service.get_job(job_id)
+        if not job:
+            return {"success": False, "error": "Job not found", "job": None}
+        return {"success": True, "job": job}
+
+    def cancel_job(self, job_id: str) -> Dict[str, Any]:
+        """Zru\u0161\u00ed \u00falohu."""
+        success = self._service.cancel_job(job_id)
+        return {"success": success, "job_id": job_id}
 
 
-@wb.route("/workbench")
-def workbench_page():
-    return render_template("pages/workbench.html")
-
-
-@wb.post("/api/v1/workbench/ingest")
-def api_ingest():
-    d = _body()
-    raw = d.get("raw", "").strip()
-    if not raw:
-        return jsonify({"ok": False, "error": "Chybí pole 'raw'."}), 400
-    result = ingest_identifier(raw, d.get("meta", {}))
-    return jsonify({"ok": True, "identifier": result})
-
-
-@wb.post("/api/v1/workbench/analyze")
-def api_analyze():
-    d = _body()
-    identifier = d.get("identifier")
-    if not identifier:
-        return jsonify({"ok": False, "error": "Chybí pole 'identifier'."}), 400
-    result = run_analysis_pipeline(identifier)
-    return jsonify({"ok": True, **result})
-
-
-@wb.post("/api/v1/workbench/reverse")
-def api_reverse():
-    d = _body()
-    raw = d.get("raw", "").strip()
-    if not raw:
-        return jsonify({"ok": False, "error": "Chybí pole 'raw'."}), 400
-    result = run_reverse_engineering(raw)
-    return jsonify({"ok": True, **result})
-
-
-@wb.post("/api/v1/workbench/test-run")
-def api_test_run():
-    d = _body()
-    target = d.get("target", "").strip()
-    if not target:
-        return jsonify({"ok": False, "error": "Chybí pole 'target'."}), 400
-    report = run_test_harness(target, d.get("profile", {}))
-    return jsonify({"ok": True, **report})
-
-
-def register_workbench(app):
-    """Call this from app.py to mount the workbench blueprint."""
-    app.register_blueprint(wb)
+# Glob\u00e1ln\u00ed instance pro snadn\u00e9 pou\u017eit\u00ed
+workbench_routes = WorkbenchRoutes()
