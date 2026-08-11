@@ -1,66 +1,122 @@
-import re, json, zipfile, io, base64
-from collections import Counter,defaultdict
-from datetime import datetime, timezone
-from pathlib import Path
-from .registry_store import _load, _save, export_csv_text, import_csv_text
-ROOT=Path(__file__).resolve().parent.parent/'data'; SESS=ROOT/'sessions.json'; USERS=ROOT/'users.json'
-def _now():return datetime.now(timezone.utc).isoformat()
-def _sessions():
- try:return json.loads(SESS.read_text()) if SESS.exists() else []
- except Exception:return []
-def _write(x):ROOT.mkdir(exist_ok=True);SESS.write_text(json.dumps(x,ensure_ascii=False,indent=2))
-def session_create(name):
- x={'id':datetime.now().strftime('%Y%m%d%H%M%S%f'),'name':str(name or 'Inventura').strip()[:80],'created_at':_now(),'scans':[]};s=_sessions();s.insert(0,x);_write(s);return x
-def session_add(i,payload):
- s=_sessions()
- for x in s:
-  if x['id']==i:
-   x['scans'].append({'payload':str(payload).strip(),'at':_now()});_write(s);return x
- raise ValueError('Relace nebyla nalezena.')
-def session_list():return _sessions()
-def profile(payload):
- p=str(payload or '');alpha={'digits':bool(re.fullmatch(r'\d+',p)),'hex':bool(re.fullmatch(r'[0-9A-Fa-f]+',p)) and len(p)%2==0,'base64':bool(re.fullmatch(r'[A-Za-z0-9+/=_-]{8,}',p)),'url':p.startswith(('http://','https://')),'wifi':p.startswith('WIFI:'),'jwt_like':p.count('.')==2}
- seps=sorted(set(c for c in p if not c.isalnum()))
- return {'payload':p,'length':len(p),'alphabet':alpha,'separators':seps,'prefix':re.split(r'[^A-Za-z0-9]+',p)[0] if p else '', 'segments':re.split(r'[^A-Za-z0-9]+',p),'hex':p.encode().hex(' ').upper()}
-def diff(values):
- vals=[str(v) for v in values if str(v)]
- if not vals:return {'rows':[],'common_prefix':'','common_suffix':''}
- pre='';
- for chars in zip(*vals):
-  if len(set(chars))==1:pre+=chars[0]
-  else:break
- rev=[x[::-1] for x in vals];suf=''
- for chars in zip(*rev):
-  if len(set(chars))==1:suf+=chars[0]
-  else:break
- maxlen=max(map(len,vals));rows=[]
- for i in range(maxlen):
-  chars=[v[i] if i<len(v) else '∅' for v in vals];rows.append({'position':i,'values':chars,'same':len(set(chars))==1})
- return {'rows':rows,'common_prefix':pre,'common_suffix':suf[::-1]}
-def patterns(values):
- groups=defaultdict(list)
- for x in values:
-  p=profile(x);key=f"{p['prefix']}|{p['length']}|{','.join(p['separators'])}";groups[key].append(x)
- return [{'pattern':k,'count':len(v),'examples':v[:5]} for k,v in groups.items()]
-def gs1(raw):
- x=re.sub(r'\D','',str(raw));
- if len(x) not in (8,12,13,14):return {'valid':False,'reason':'GTIN musí mít 8, 12, 13 nebo 14 číslic včetně kontrolní.'}
- total=sum(int(d)*(3 if i%2==0 else 1) for i,d in enumerate(x[-2::-1]));check=(10-total%10)%10
- return {'valid':check==int(x[-1]),'digits':x,'expected_check':check,'type':f'GTIN-{len(x)}'}
-def backup():
- data=_load();buf=io.BytesIO()
- with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
-  z.writestr('registry.json',json.dumps(data,ensure_ascii=False,indent=2));z.writestr('registry.csv',export_csv_text());z.writestr('sessions.json',json.dumps(_sessions(),ensure_ascii=False,indent=2));
-  z.writestr('users.json', USERS.read_text() if USERS.exists() else json.dumps({'users':[]},ensure_ascii=False));z.writestr('manifest.json',json.dumps({'format':'suseto-backup-v1','created_at':_now()}))
- return buf.getvalue()
-def restore(raw):
- try:
-  with zipfile.ZipFile(io.BytesIO(raw)) as z:
-   if 'registry.json' not in z.namelist():raise ValueError('Záloha neobsahuje registry.json.')
-   reg=json.loads(z.read('registry.json')); 
-   if not isinstance(reg,dict) or not isinstance(reg.get('items'),list):raise ValueError('Neplatná struktura Registry.')
-   _save(reg)
-   if 'sessions.json' in z.namelist():_write(json.loads(z.read('sessions.json')))
-   if 'users.json' in z.namelist(): USERS.write_bytes(z.read('users.json'))
- except zipfile.BadZipFile:raise ValueError('Neplatný ZIP soubor.')
- return {'restored_items':len(reg['items'])}
+# services/operations_service.py
+# Z\u00e1kladn\u00ed slu\u017eba pro operace nad daty – CRUD, batch, transformace.
+
+from typing import Dict, Any, List, Optional, Callable
+from datetime import datetime
+
+
+class OperationsService:
+    """Jednoduch\u00fd storage pro obecn\u00e1 data a operace nad nimi.
+
+    Ukl\u00e1d\u00e1 data do pam\u011bti (dict) – vhodn\u00e9 pro v\u00fdvoj a rychl\u00e9 lad\u011bn\u00ed.
+    V produkci by m\u011blo b\u00fdt napojeno na DB / extern\u00ed storage.
+    """
+
+    def __init__(self):
+        self._data: Dict[str, Dict[str, Any]] = {}
+
+    def create(
+        self,
+        key: str,
+        value: Dict[str, Any],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Vytvoř\u00ed nov\u00fd z\u00e1znam pod dan\u00fdm kl\u00ed\u010dem."""
+        entry = {
+            "key": key,
+            "value": value,
+            "metadata": metadata or {},
+            "created_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+        self._data[key] = entry
+        return entry
+
+    def read(self, key: str) -> Optional[Dict[str, Any]]:
+        """Na\u010dte z\u00e1znam podle kl\u00ed\u010de."""
+        return self._data.get(key)
+
+    def update(
+        self,
+        key: str,
+        value: Dict[str, Any],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Aktualizuje existuj\u00edc\u00ed z\u00e1znam."""
+        if key not in self._data:
+            return None
+        entry = self._data[key]
+        entry["value"] = value
+        if metadata:
+            entry["metadata"].update(metadata)
+        entry["updated_at"] = datetime.utcnow().isoformat()
+        return entry
+
+    def delete(self, key: str) -> bool:
+        """Sma\u017ee z\u00e1znam podle kl\u00ed\u010de.
+
+        Vrac\u00ed True, pokud byl z\u00e1znam smaz\u00e1n, False pokud neexistoval.
+        """
+        if key in self._data:
+            del self._data[key]
+            return True
+        return False
+
+    def list_all(self) -> List[Dict[str, Any]]:
+        """Vr\u00e1t\u00ed seznam v\u0161ech z\u00e1znam\u016f."""
+        return list(self._data.values())
+
+    def batch_create(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Vytvoř\u00ed v\u00edce z\u00e1znam\u016f najednou.
+
+        items: seznam dict\u016f s kl\u00ed\u010di 'key', 'value', voliteln\u011b 'metadata'.
+        """
+        results = []
+        for item in items:
+            key = item["key"]
+            value = item["value"]
+            metadata = item.get("metadata", {})
+            results.append(self.create(key, value, metadata))
+        return results
+
+    def batch_update(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Aktualizuje v\u00edce z\u00e1znam\u016f najednou."""
+        results = []
+        for item in items:
+            key = item["key"]
+            value = item["value"]
+            metadata = item.get("metadata", {})
+            results.append(self.update(key, value, metadata))
+        return results
+
+    def transform(
+        self,
+        key: str,
+        transform_fn: Callable[[Dict[str, Any]], Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        """Aplikuje transforma\u010dn\u00ed funkci na hodnotu z\u00e1znamu.
+
+        transform_fn: funkce, kter\u00e1 bere dict a vrac\u00ed dict.
+        """
+        entry = self.read(key)
+        if not entry:
+            return None
+        new_value = transform_fn(entry["value"])
+        return self.update(key, new_value)
+
+    def clear_all(self) -> int:
+        """Vyma\u017ee v\u0161echny z\u00e1znamy.
+
+        Vrac\u00ed po\u010det smazan\u00fdch polo\u017eek.
+        """
+        count = len(self._data)
+        self._data.clear()
+        return count
+
+    def count(self) -> int:
+        """Vr\u00e1t\u00ed aktu\u00e1ln\u00ed po\u010det z\u00e1znam\u016f."""
+        return len(self._data)
+
+
+# Glob\u00e1ln\u00ed instance pro snadn\u00e9 pou\u017eit\u00ed
+operations_service = OperationsService()
