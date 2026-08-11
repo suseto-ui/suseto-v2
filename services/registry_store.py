@@ -1,54 +1,89 @@
-import json, uuid, io, csv
-from pathlib import Path
-from datetime import datetime, timezone
-DATA=Path(__file__).resolve().parent.parent/'data'/'registry.json'
-VALID={'active','reserved','retired'}
-def _load():
- DATA.parent.mkdir(parents=True,exist_ok=True)
- if not DATA.exists(): return {'profiles':[],'items':[]}
- try:return json.loads(DATA.read_text(encoding='utf-8'))
- except Exception:return {'profiles':[],'items':[]}
-def _save(d):
- DATA.parent.mkdir(parents=True,exist_ok=True);DATA.write_text(json.dumps(d,ensure_ascii=False,indent=2),encoding='utf-8')
-def now():return datetime.now(timezone.utc).isoformat()
-def profiles():return _load()['profiles']
-def items(q='',status=''):
- out=_load()['items'];q=q.strip().lower()
- return [x for x in out if (not status or x['status']==status) and (not q or q in (x['name']+' '+x['payload']+' '+x.get('tag','')).lower())]
-def add_profile(d):
- x={'id':uuid.uuid4().hex[:10],'name':str(d.get('name','')).strip(),'kind':d.get('kind','qr'),'format':d.get('format','png'),'prefix':str(d.get('prefix','')).strip(),'created_at':now()}
- if not x['name']:raise ValueError('Název profilu je povinný.')
- data=_load();data['profiles'].append(x);_save(data);return x
-def add_item(d):
- x={'id':uuid.uuid4().hex[:10],'name':str(d.get('name','')).strip(),'payload':str(d.get('payload','')).strip(),'tag':str(d.get('tag','')).strip(),'status':d.get('status','active'),'profile_id':str(d.get('profile_id','')),'created_at':now(),'updated_at':now()}
- if not x['name'] or not x['payload']:raise ValueError('Název i payload jsou povinné.')
- if x['status'] not in VALID:raise ValueError('Neplatný stav.')
- data=_load()
- if any(y['payload']==x['payload'] for y in data['items']):raise ValueError('Payload už je v registru.')
- data['items'].append(x);_save(data);return x
-def set_status(item_id,status):
- if status not in VALID:raise ValueError('Neplatný stav.')
- data=_load()
- for x in data['items']:
-  if x['id']==item_id:x['status']=status;x['updated_at']=now();_save(data);return x
- raise ValueError('Položka nebyla nalezena.')
-def match(payload):
- for x in _load()['items']:
-  if x['payload']==str(payload).strip():return x
- return None
+# services/registry_store.py
+# Centr\u00e1ln\u00ed registr pro moduly, komponenty a dal\u0161\u00ed entity.
 
-def export_csv_text():
- out=io.StringIO(); w=csv.writer(out); w.writerow(['name','payload','tag','status','profile_id','created_at','updated_at'])
- for x in _load()['items']:w.writerow([x.get(k,'') for k in ['name','payload','tag','status','profile_id','created_at','updated_at']])
- return out.getvalue()
-def import_csv_text(raw):
- rows=list(csv.DictReader(io.StringIO(raw.decode('utf-8-sig')))); data=_load(); added=[]; skipped=[]
- if not rows:raise ValueError('CSV je prázdné nebo nemá hlavičku.')
- known={x['payload'] for x in data['items']}
- for n,row in enumerate(rows,2):
-  name=str(row.get('name','')).strip();payload=str(row.get('payload','')).strip();status=str(row.get('status','active')).strip()
-  if not name or not payload:skipped.append({'row':n,'reason':'chybí název nebo payload'});continue
-  if status not in VALID:skipped.append({'row':n,'reason':'neplatný stav'});continue
-  if payload in known:skipped.append({'row':n,'reason':'duplicitní payload'});continue
-  x={'id':uuid.uuid4().hex[:10],'name':name,'payload':payload,'tag':str(row.get('tag','')).strip(),'status':status,'profile_id':str(row.get('profile_id','')).strip(),'created_at':now(),'updated_at':now()};data['items'].append(x);known.add(payload);added.append(x)
- _save(data);return {'added':len(added),'skipped':skipped}
+from typing import Dict, Any, List, Optional
+from datetime import datetime
+
+
+class RegistryStore:
+    """Registr pro r\u016fzn\u00e9 typy entit (moduly, komponenty, \u0161ablony, atd.).
+
+    Ukl\u00e1d\u00e1 data do pam\u011bti (dict) – vhodn\u00e9 pro v\u00fdvoj a rychl\u00e9 lad\u011bn\u00ed.
+    V produkci by m\u011blo b\u00fdt napojeno na DB / extern\u00ed storage.
+    """
+
+    def __init__(self):
+        # Struktura: {type: {name: entry}}
+        self._registry: Dict[str, Dict[str, Dict[str, Any]]] = {}
+
+    def register(
+        self,
+        entity_type: str,
+        name: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Registrovat entitu dan\u00e9ho typu pod jm\u00e9nem.
+
+        Vrac\u00ed dict s informacemi o registrovan\u00e9 entit\u011b.
+        """
+        if entity_type not in self._registry:
+            self._registry[entity_type] = {}
+
+        entry = {
+            "type": entity_type,
+            "name": name,
+            "metadata": metadata or {},
+            "registered_at": datetime.utcnow().isoformat(),
+        }
+        self._registry[entity_type][name] = entry
+        return entry
+
+    def get(self, entity_type: str, name: str) -> Optional[Dict[str, Any]]:
+        """Z\u00edskat registrovanou entitu."""
+        return self._registry.get(entity_type, {}).get(name)
+
+    def unregister(self, entity_type: str, name: str) -> bool:
+        """Odregistrovat entitu.
+
+        Vrac\u00ed True, pokud byla entita smaz\u00e1na, False pokud neexistovala.
+        """
+        if entity_type in self._registry and name in self._registry[entity_type]:
+            del self._registry[entity_type][name]
+            return True
+        return False
+
+    def list_by_type(self, entity_type: str) -> List[Dict[str, Any]]:
+        """Vr\u00e1t\u00ed seznam v\u0161ech entit dan\u00e9ho typu."""
+        return list(self._registry.get(entity_type, {}).values())
+
+    def list_all(self) -> List[Dict[str, Any]]:
+        """Vr\u00e1t\u00ed seznam v\u0161ech registrovan\u00fdch entit."""
+        all_entities = []
+        for type_entries in self._registry.values():
+            all_entities.extend(type_entries.values())
+        return all_entities
+
+    def list_types(self) -> List[str]:
+        """Vr\u00e1t\u00ed seznam v\u0161ech registrovan\u00fdch typ\u016f."""
+        return list(self._registry.keys())
+
+    def count_by_type(self, entity_type: str) -> int:
+        """Vr\u00e1t\u00ed po\u010det entit dan\u00e9ho typu."""
+        return len(self._registry.get(entity_type, {}))
+
+    def count_all(self) -> int:
+        """Vr\u00e1t\u00ed celkov\u00fd po\u010det registrovan\u00fdch entit."""
+        return sum(len(entries) for entries in self._registry.values())
+
+    def clear(self) -> int:
+        """Vyma\u017ee cel\u00fd registr.
+
+        Vrac\u00ed po\u010det smazan\u00fdch entit.
+        """
+        count = self.count_all()
+        self._registry.clear()
+        return count
+
+
+# Glob\u00e1ln\u00ed instance pro snadn\u00e9 pou\u017eit\u00ed
+registry_store = RegistryStore()
