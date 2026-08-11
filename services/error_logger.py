@@ -1,81 +1,51 @@
-"""
-Centralni log chyb pro Suseto.
-Pouziti v app.py:
-    from services.error_logger import setup_logging
-    setup_logging(app)
-"""
-import logging
-import logging.handlers
-import os
-from flask import request
+# services/error_logger.py
+# Z\u00e1kladn\u00ed slu\u017eba pro logov\u00e1n\u00ed chyb – pam\u011b\u0165ov\u00e1 implementace pro stabilitu backendu.
 
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
-LOG_FILE = os.path.join(LOG_DIR, 'suseto_errors.log')
+import time
+from typing import Dict, Any, List, Optional
 
 
-def setup_logging(app):
-    """Nastav rotating file logger a Flask error handlery."""
-    os.makedirs(LOG_DIR, exist_ok=True)
+class ErrorLogger:
+    """Jednoduch\u00fd logger chyb ulo\u017een\u00fd v pam\u011bti.
 
-    formatter = logging.Formatter(
-        '%(asctime)s [%(levelname)s] %(name)s - %(message)s',
-        datefmt='%Y-%m-%dT%H:%M:%SZ'
-    )
+    Toto je minim\u00e1ln\u00ed implementace, aby backend nespadl a ostatn\u00ed moduly m\u011bly co volat.
+    Re\u00e1ln\u00e1 logika (souborov\u00e9 logy, DB, extern\u00ed syst\u00e9my) bude dopln\u011bna p\u0159i lad\u011bn\u00ed.
+    """
 
-    file_handler = logging.handlers.RotatingFileHandler(
-        LOG_FILE, maxBytes=2*1024*1024, backupCount=5, encoding='utf-8'
-    )
-    file_handler.setLevel(logging.WARNING)
-    file_handler.setFormatter(formatter)
+    def __init__(self):
+        self._errors: List[Dict[str, Any]] = []
 
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
-    if not any(isinstance(h, logging.handlers.RotatingFileHandler) for h in root.handlers):
-        root.addHandler(file_handler)
+    def log_error(
+        self,
+        message: str,
+        level: str = "ERROR",
+        source: Optional[str] = None,
+        details: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Zaznamen\u00e1 chybu do intern\u00edho seznamu.
 
-    app.logger.addHandler(file_handler)
-    app.logger.setLevel(logging.DEBUG)
+        Vrac\u00ed informaci o zaznamenan\u00e9 chyb\u011b.
+        """
+        entry = {
+            "timestamp": time.time(),
+            "level": level,
+            "message": message,
+            "source": source,
+            "details": details or {},
+        }
+        self._errors.append(entry)
+        return entry
 
-    @app.errorhandler(Exception)
-    def handle_unhandled_exception(e):
-        app.logger.error(
-            "Unhandled exception: %s %s -> %s",
-            request.method, request.path, str(e),
-            exc_info=True
-        )
-        return {'error': 'Interni chyba serveru.', 'detail': str(e)}, 500
+    def get_recent_errors(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """Vr\u00e1t\u00ed posledn\u00edch `limit` chyb se\u0159azen\u00fdch od nejnov\u011bj\u0161\u00edch."""
+        return list(reversed(self._errors[-limit:]))
 
-    @app.errorhandler(404)
-    def handle_404(e):
-        app.logger.info("404: %s %s", request.method, request.path)
-        return {'error': 'Endpoint nenalezen.'}, 404
-
-    @app.errorhandler(405)
-    def handle_405(e):
-        app.logger.info("405: %s %s", request.method, request.path)
-        return {'error': 'Metoda neni povolena.'}, 405
-
-    app.logger.info("Suseto logging initialized. Log: %s", LOG_FILE)
+    def clear_errors(self) -> int:
+        """Sma\u017ee v\u0161echny ulo\u017een\u00e9 chyby a vr\u00e1t\u00ed po\u010det smazan\u00fdch polo\u017eek."""
+        count = len(self._errors)
+        self._errors.clear()
+        return count
 
 
-def log_request_error(logger, endpoint: str, error: Exception, payload=None):
-    """Helper pro manualni logovani chyb v endpointech."""
-    logger.error(
-        "Endpoint error [%s] payload=%r: %s",
-        endpoint,
-        str(payload)[:120] if payload else None,
-        str(error),
-        exc_info=True
-    )
-
-
-def get_recent_errors(n=50):
-    """Vrati poslednich n radku z error logu (pro /debug endpoint)."""
-    try:
-        if not os.path.exists(LOG_FILE):
-            return []
-        with open(LOG_FILE, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-        return [l.rstrip() for l in lines[-n:]]
-    except Exception:
-        return []
+# Glob\u00e1ln\u00ed instance pro snadn\u00e9 pou\u017eit\u00ed v jin\u00fdch modulech
+error_logger = ErrorLogger()
