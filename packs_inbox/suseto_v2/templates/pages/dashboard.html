@@ -1,0 +1,26 @@
+{% extends "layout.html" %}{% block title %}Suseto | Dashboard{% endblock %}{% block content %}
+<section class="page-head">
+  <div class="panel">
+    <div class="eyebrow">Overview</div>
+    <h1>Dashboard</h1>
+    <p class="lead">Přehled aktivity, počty záznamů a graf skenování za posledních 7 dní.</p>
+  </div>
+</section>
+<section class="aidc-layout">
+  <article class="panel">
+    <h2>Klíčové ukazatele</h2>
+    <div id="dash-kpis" style="display:flex; gap:15px; flex-wrap:wrap; margin-bottom: 20px;"></div>
+  </article>
+  <article class="panel">
+    <h2>Aktivita (skeny za 7 dní)</h2>
+    <div style="height: 200px; display:flex; align-items:flex-end; gap:10px; padding-top:20px; border-bottom:1px solid #cbd5e1" id="dash-chart"></div>
+  </article>
+</section>
+<section class="aidc-layout">
+  <article class="panel">
+    <h2>Poslední události v systému</h2>
+    <div id="dash-recent" class="stack"></div>
+  </article>
+</section>
+<script src="{{ url_for('static',filename='js/dashboard.js') }}"></script>
+{% endblock %}
