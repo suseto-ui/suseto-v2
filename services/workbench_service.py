@@ -1,21 +1,21 @@
 # services/workbench_service.py
-# Hlavní služba pro Workbench - placeholder kostra
+# Hlavní··služba pro Workbench - placeholder kostra
 
 from typing import Dict, Any, List
 import uuid
 
 class WorkbenchService:
-    """Hlavní služba pro správu úloh ve Workbenchi."""
+    """Hlavní··služba pro sprá··vu úloh ve Workbenchi."""
 
     def __init__(self):
         self._jobs: Dict[str, Dict[str, Any]] = {}
 
     def list_jobs(self) -> List[Dict[str, Any]]:
-        """Vrátí seznam všech úloh."""
+        """Vr\u00e1t\u00ed seznam v\u0161ech \u00faloh."""
         return list(self._jobs.values())
 
     def create_job(self, job_type: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Vytvoří novou úlohu."""
+        """Vytvo\u0159\u00ed novou \u00falohu."""
         job_id = str(uuid.uuid4())[:8]
         job = {
             "id": job_id,
@@ -27,15 +27,15 @@ class WorkbenchService:
         return job
 
     def get_job(self, job_id: str) -> Dict[str, Any]:
-        """Vrátí detail úlohy."""
+        """Vr\u00e1t\u00ed detail \u00falohy."""
         return self._jobs.get(job_id, {})
 
     def cancel_job(self, job_id: str) -> bool:
-        """Zruší úlohu."""
+        """Zru\u0161\u00ed \u00falohu."""
         if job_id in self._jobs:
             self._jobs[job_id]["status"] = "cancelled"
             return True
         return False
 
-# Globální instance, kterou importuje workbench_routes.py
+# Glob\u00e1ln\u00ed instance, kterou importuje workbench_routes.py
 workbench_service = WorkbenchService()
