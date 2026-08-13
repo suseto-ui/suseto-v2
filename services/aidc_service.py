@@ -3,7 +3,7 @@
 
 from typing import Dict, Any, List, Optional
 
-from .aidc_core import generate_qr, generate_barcode, scan_analysis
+from .aidc_core import (     generate_qr as _core_generate_qr,     generate_barcode as _core_generate_barcode,     scan_analysis as _core_scan_analysis, )  def generate_qr(data: str, kind: str = "qr", fmt: str = "png") -> Dict[str, Any]:     return _core_generate_qr(data, kind=kind, fmt=fmt)  def generate_barcode(data: str, kind: str = "code128", fmt: str = "png") -> Dict[str, Any]:     return _core_generate_barcode(data, kind=kind, fmt=fmt)  def scan_analysis(payload: str) -> Dict[str, Any]:     return _core_scan_analysis(payload)
 
 
 class AidcService:
