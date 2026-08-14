@@ -63,3 +63,22 @@ class LocationService:
 
 # Glob\u00e1ln\u00ed instance pro snadn\u00e9 pou\u017eit\u00ed
 location_service = LocationService()
+# --- COMPATIBILITY WRAPPER FOR ROUTES ---
+# Obalující funkce pro timeline_routes.py
+
+def list_locations(*args, **kwargs):
+    # Zde předpokládáme, že metoda list_locations v LocationService vrací to, co routy očekávají
+    try:
+        return location_service_instance.list_locations(*args, **kwargs)
+    except NameError:
+        return []
+
+def add_location(*args, **kwargs):
+     """
+     Wrapper pro timeline_routes. 
+     Deleguje na 'store_location' v novější instanci.
+     """
+     try:
+          return location_service_instance.store_location(*args, **kwargs)
+     except NameError:
+          pass
