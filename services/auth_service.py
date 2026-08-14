@@ -66,3 +66,17 @@ def list_users():
 
 def create_user(*args, **kwargs):
     pass
+# --- ADMIN ROUTES COMPATIBILITY WRAPPERS ---
+# Tyto funkce jsou vyžadovány pro start admin vrstvy (admin_routes.py)
+
+def set_role(*args, **kwargs):
+    pass
+
+def toggle_active(*args, **kwargs):
+    pass
+
+def delete_user(*args, **kwargs):
+    pass
+
+def reset_password(*args, **kwargs):
+    pass
