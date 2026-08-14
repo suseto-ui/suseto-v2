@@ -21,7 +21,7 @@ except ImportError:
     BARCODE_AVAILABLE = False
 
 
-def _core_generate_qr(data: str, format: str = 'png', **kwargs) -> dict:
+def generate_qr(data: str, format: str = 'png', **kwargs) -> dict:
     """
     Plnohodnotný generátor QR kódů.
     Vrací slovník obsahující raw bajty (pro send_file) i base64 (pro JSON),
@@ -67,7 +67,7 @@ def _core_generate_qr(data: str, format: str = 'png', **kwargs) -> dict:
         return {"success": False, "error": str(e), "bytes": None}
 
 
-def _core_generate_barcode(data: str, barcode_type: str = 'code128', format: str = 'png', **kwargs) -> dict:
+def generate_barcode(data: str, barcode_type: str = 'code128', format: str = 'png', **kwargs) -> dict:
     """
     Plnohodnotný generátor čárových kódů. Dříve vracel jen metadata,
     nyní fyzicky generuje PNG a SVG obrázky.
@@ -117,7 +117,7 @@ def _core_generate_barcode(data: str, barcode_type: str = 'code128', format: str
         return {"success": False, "error": str(e), "bytes": None}
 
 
-def _core_scan_analysis(image_data, **kwargs) -> dict:
+def scan_analysis(image_data, **kwargs) -> dict:
     """
     Placeholder pro budoucí analýzu naskenovaných kódů (OpenCV / pyzbar).
     """
@@ -127,3 +127,10 @@ def _core_scan_analysis(image_data, **kwargs) -> dict:
         "message": "Analýza fyzického obrazu zatím není v core aktivní.",
         "decoded_data": None
     }
+
+
+# --- BACKWARD COMPATIBILITY ALIASES ---
+# Abychom zachytili případné další interní importy ze starších modulů
+_core_generate_qr = generate_qr
+_core_generate_barcode = generate_barcode
+_core_scan_analysis = scan_analysis
