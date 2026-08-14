@@ -89,3 +89,14 @@ def list_for(*args, **kwargs):
         return timeline_service_instance.get_events(*args, **kwargs) 
     except NameError:
          return [] # Bezpečný návrat prázdného pole, pokud instance není nalezena
+# --- COMPATIBILITY WRAPPER FOR timeline_routes.py ---
+def list_for(*args, **kwargs):
+    """
+    Kompatibilní wrapper očekávaný routami časové osy.
+    """
+    try:
+        if 'timeline_service' in globals() and hasattr(timeline_service, 'get_events'):
+            return timeline_service.get_events(*args, **kwargs)
+    except Exception:
+        pass
+    return []
