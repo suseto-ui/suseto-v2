@@ -38,3 +38,25 @@ class Config:
 
 # Globální instance pro snadné použití
 config = Config()
+# --- COMPATIBILITY WRAPPER FOR app.py ---
+# Tento wrapper umožňuje app.py číst vlastnosti instance `config` jako slovník.
+class ConfigWrapper:
+    def __init__(self, cfg):
+        self._cfg = cfg
+
+    def __getitem__(self, key):
+        # Mapování očekávaných velkých klíčů na malé atributy instance
+        key_map = {
+            "SECRET_KEY": "secret_key",
+            "DATABASE_URI": "database_url",
+            "ADMIN_USERNAME": "admin_username",
+            "DEFAULT_ADMIN_PASSWORD": "default_admin_password"
+        }
+        attr_name = key_map.get(key, key.lower())
+        return getattr(self._cfg, attr_name, None)
+
+    def get(self, key, default=None):
+        val = self.__getitem__(key)
+        return val if val is not None else default
+
+CONFIG = ConfigWrapper(config)
