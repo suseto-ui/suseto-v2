@@ -64,3 +64,10 @@ class AuditService:
 
 # Globální instance pro snadné použití
 audit_service = AuditService()
+# --- COMPATIBILITY WRAPPER FOR routes ---
+def write(*args, **kwargs):
+    """
+    Kompatibilní modulová funkce očekávaná routami a admin vrstvou.
+    Deleguje volání na novější instanční metodu log_action.
+    """
+    return audit_service.log_action(*args, **kwargs)
