@@ -28,3 +28,14 @@ class Database:
 
 # Globální instance pro snadné použití
 database = Database()
+# --- COMPATIBILITY WRAPPER FOR app.py ---
+# Mock objekt pro SQLAlchemy importy, zajišťuje bezpečný start 
+# bez rozbití stávajícího in-memory / custom DB řešení.
+class MockDB:
+    def init_app(self, app):
+        pass
+
+    def create_all(self):
+        pass
+
+db = MockDB()
