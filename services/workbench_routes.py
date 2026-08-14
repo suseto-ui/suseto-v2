@@ -47,3 +47,10 @@ class WorkbenchRoutes:
 
 # Glob\u00e1ln\u00ed instance pro snadn\u00e9 pou\u017eit\u00ed
 workbench_routes = WorkbenchRoutes()
+# --- COMPATIBILITY WRAPPER FOR app.py ---
+def register_workbench(app):
+    """
+    Nouzová registrace Workbenche pro zamezení pádu (P0).
+    Plná implementace Blueprintu přijde ve Fázi C (Workbench recovery).
+    """
+    pass
