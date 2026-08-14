@@ -1,0 +1,159 @@
+openapi: 3.0.3
+info:
+  title: Suseto UI API
+  description: API dokumentace pro projekt Suseto v2. Zahrnuje analytické nástroje (Workbench), dekódování, generování optických kódů (AIDC) a správu logů.
+  version: 2.0.0
+servers:
+  - url: /api/v1
+    description: Hlavní API (lokální / PythonAnywhere)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Zadejte platný Bearer token pro autorizaci požadavků (především administrace a registry).
+
+security:
+  - bearerAuth: []
+
+paths:
+  # --- AIDC (Optical Codes) ---
+  /aidc/generate:
+    post:
+      summary: Generování QR nebo čárového kódu
+      tags:
+        - AIDC
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  example: qr
+                  description: Typ kódu (qr, ean13, code128...)
+                data:
+                  type: string
+                  example: https://suseto.cz
+                format:
+                  type: string
+                  example: png
+                  enum: [png, svg]
+      responses:
+        '200':
+          description: Vrací binární raw data obrázku (BLOB)
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+
+  /aidc/batch/preview:
+    post:
+      summary: Náhled pro hromadné generování kódů
+      tags:
+        - AIDC
+      responses:
+        '200':
+          description: OK
+
+  /aidc/batch/generate:
+    post:
+      summary: Spuštění hromadného generování
+      tags:
+        - AIDC
+      responses:
+        '200':
+          description: OK
+
+  # --- DECODE MODULE ---
+  /decode/chain:
+    post:
+      summary: Dekódovací řetězec
+      tags:
+        - Decode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: string
+      responses:
+        '200':
+          description: Výsledek dekódování
+
+  # --- NAVIGATOR ---
+  /analyze:
+    post:
+      summary: Rychlá analýza payloadu (Navigator)
+      tags:
+        - Navigator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payload:
+                  type: string
+      responses:
+        '200':
+          description: Analytický strom a doporučení
+
+  # --- WORKBENCH ---
+  /workbench/ingest:
+    post:
+      summary: Normalizace a typování identifikátoru
+      tags:
+        - Workbench
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                raw:
+                  type: string
+      responses:
+        '200':
+          description: Úspěšný ingest (ok, identifier)
+
+  /workbench/analyze:
+    post:
+      summary: Analýza rizik a vlastností
+      tags:
+        - Workbench
+      responses:
+        '200':
+          description: Rizikové skóre a poznámky
+
+  /workbench/reverse:
+    post:
+      summary: Reverzní inženýrství
+      tags:
+        - Workbench
+      responses:
+        '200':
+          description: Entropie a detekované vrstvy
+
+  /workbench/test-run:
+    post:
+      summary: Spuštění testovací harnessy
+      tags:
+        - Workbench
+      responses:
+        '200':
+          description: Výsledky testovacích běhů
