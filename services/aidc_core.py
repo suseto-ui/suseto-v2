@@ -1,86 +1,129 @@
 # services/aidc_core.py
-# Jádro AIDC logiky – generování QR/1D kódů a analýza payloadu.
-
+import io
 import base64
-from typing import Dict, Any
+import logging
 
+logger = logging.getLogger(__name__)
+
+# --- BEZPEČNÉ IMPORTY ZÁVISLOSTÍ ---
 try:
     import qrcode
-except ImportError:  # pokud qrcode není k dispozici, necháme jen placeholder
-    qrcode = None
+    import qrcode.image.svg
+    QRCODE_AVAILABLE = True
+except ImportError:
+    QRCODE_AVAILABLE = False
+
+try:
+    import barcode
+    from barcode.writer import ImageWriter, SVGWriter
+    BARCODE_AVAILABLE = True
+except ImportError:
+    BARCODE_AVAILABLE = False
 
 
-def generate_qr(data: str, kind: str = "qr", fmt: str = "png") -> Dict[str, Any]:
-    """Generuje QR kód pro daný payload.
-
-    Vrací dict s informacemi o kódu. Pokud není dostupná knihovna qrcode,
-    vrátí pouze strukturu s payloadem a typem.
+def _core_generate_qr(data: str, format: str = 'png', **kwargs) -> dict:
     """
-    if not data:
-        raise ValueError("Payload je prázdný.")
-
-    if qrcode is None:
-        # Minimálně vraťme metadata, aby frontend věděl, co se děje.
-        return {"kind": kind, "format": fmt, "payload": data, "image": None}
-
-    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M)
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-
-    import io
-    buf = io.BytesIO()
-    if fmt == "png":
-        img.save(buf, format="PNG")
-    else:
-        img.save(buf, format="PNG")  # zatím podporujeme PNG
-    buf.seek(0)
-    b64 = base64.b64encode(buf.read()).decode("ascii")
-
-    return {
-        "kind": kind,
-        "format": fmt,
-        "payload": data,
-        "image": b64,
-    }
-
-
-def generate_barcode(data: str, kind: str = "code128", fmt: str = "png") -> Dict[str, Any]:
-    """Placeholder pro generování 1D kódů.
-
-    Aktuálně negeneruje skutečný obrázek (není-li k dispozici knihovna pro 1D kódy),
-    ale vrací metadata, aby aplikace nespadla.
+    Plnohodnotný generátor QR kódů.
+    Vrací slovník obsahující raw bajty (pro send_file) i base64 (pro JSON),
+    čímž zachovává zpětnou kompatibilitu pro všechny vrstvy.
     """
-    if not data:
-        raise ValueError("Payload je prázdný.")
+    if not QRCODE_AVAILABLE:
+        return {"success": False, "error": "Knihovna qrcode chybí. Spusťte pip install qrcode", "bytes": None}
 
-    # TODO: pokud přidáš knihovnu pro 1D kódy (např. python-barcode), můžeš zde
-    # generovat skutečný obrázek podobně jako u QR kódu.
-    return {
-        "kind": kind,
-        "format": fmt,
-        "payload": data,
-        "image": None,
-    }
+    try:
+        fmt = str(format).lower()
+        out = io.BytesIO()
+
+        if fmt == 'svg':
+            factory = qrcode.image.svg.SvgImage
+            img = qrcode.make(data, image_factory=factory, box_size=kwargs.get('box_size', 10), border=kwargs.get('border', 4))
+            img.save(out)
+            mime_type = "image/svg+xml"
+        else:
+            qr = qrcode.QRCode(
+                version=kwargs.get('version', 1),
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=kwargs.get('box_size', 10),
+                border=kwargs.get('border', 4),
+            )
+            qr.add_data(data)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            img.save(out, format='PNG')
+            mime_type = "image/png"
+
+        img_bytes = out.getvalue()
+        b64 = base64.b64encode(img_bytes).decode('utf-8')
+
+        return {
+            "success": True,
+            "format": fmt,
+            "mime_type": mime_type,
+            "bytes": img_bytes,
+            "image": f"data:{mime_type};base64,{b64}"
+        }
+    except Exception as e:
+        logger.error(f"Chyba QR Core: {e}")
+        return {"success": False, "error": str(e), "bytes": None}
 
 
-def scan_analysis(payload: str) -> Dict[str, Any]:
-    """Základní analýza payloadu pro Scanner / AIDC.
-
-    Vrací jednoduchou klasifikaci: délka, alfanumerické / numerické,
-    případně detekci URL.
+def _core_generate_barcode(data: str, barcode_type: str = 'code128', format: str = 'png', **kwargs) -> dict:
     """
-    text = payload or ""
-    is_numeric = text.isdigit()
-    is_alpha = text.isalpha()
-    is_alnum = text.isalnum()
-    looks_like_url = text.startswith("http://") or text.startswith("https://")
+    Plnohodnotný generátor čárových kódů. Dříve vracel jen metadata,
+    nyní fyzicky generuje PNG a SVG obrázky.
+    """
+    if not BARCODE_AVAILABLE:
+        return {"success": False, "error": "Knihovna python-barcode chybí. Spusťte pip install python-barcode pillow", "bytes": None}
 
+    try:
+        fmt = str(format).lower()
+        b_type = str(barcode_type).lower()
+
+        # Bezpečná detekce typu čárového kódu s fallbackem
+        try:
+            barcode_class = barcode.get_barcode_class(b_type)
+        except barcode.errors.BarcodeNotFoundError:
+            barcode_class = barcode.get_barcode_class('code128')
+
+        writer = SVGWriter() if fmt == 'svg' else ImageWriter()
+        bc = barcode_class(data, writer=writer)
+        out = io.BytesIO()
+
+        # Konfigurace vzhledu podle typu
+        writer_options = {
+            'module_width': kwargs.get('module_width', 0.2),
+            'module_height': kwargs.get('module_height', 15.0),
+            'font_size': kwargs.get('font_size', 10),
+            'text_distance': kwargs.get('text_distance', 5.0),
+            'quiet_zone': kwargs.get('quiet_zone', 6.5)
+        }
+
+        bc.write(out, options=writer_options)
+        img_bytes = out.getvalue()
+
+        mime_type = "image/svg+xml" if fmt == 'svg' else "image/png"
+        b64 = base64.b64encode(img_bytes).decode('utf-8')
+
+        return {
+            "success": True,
+            "format": fmt,
+            "mime_type": mime_type,
+            "bytes": img_bytes,
+            "image": f"data:{mime_type};base64,{b64}",
+            "metadata": {"type": b_type, "data": data}
+        }
+    except Exception as e:
+        logger.error(f"Chyba Barcode Core: {e}")
+        return {"success": False, "error": str(e), "bytes": None}
+
+
+def _core_scan_analysis(image_data, **kwargs) -> dict:
+    """
+    Placeholder pro budoucí analýzu naskenovaných kódů (OpenCV / pyzbar).
+    """
     return {
-        "payload": text,
-        "length": len(text),
-        "numeric": is_numeric,
-        "alpha": is_alpha,
-        "alnum": is_alnum,
-        "url": looks_like_url,
+        "success": True,
+        "status": "unimplemented",
+        "message": "Analýza fyzického obrazu zatím není v core aktivní.",
+        "decoded_data": None
     }
