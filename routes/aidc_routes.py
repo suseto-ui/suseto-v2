@@ -106,3 +106,40 @@ def aidc_batch_generate():
         return jsonify({"ok": True, "batch": batch_info})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
+
+# --- COMPATIBILITY WRAPPER FOR aidc_studio.js ---
+from flask import send_file, request, jsonify
+import io
+
+@aidc_bp.route('/generate', methods=['POST'])
+def generate_code_endpoint():
+    """
+    Routa obsluhující frontend aidc_studio.js.
+    Zajišťuje, že backend vrátí binární Blob, nikoliv stringified JSON.
+    """
+    data = request.get_json() or {}
+    kind = data.get('kind', 'qr')
+    payload = data.get('data', '')
+    fmt = data.get('format', 'png')
+
+    if not payload:
+        return jsonify({"error": "Chybí data pro generování"}), 400
+
+    # Delegace na opravený core (přes aidc_service, pokud existuje, jinak napřímo)
+    if kind == 'qr':
+        from services.aidc_core import _core_generate_qr
+        result = _core_generate_qr(payload, format=fmt)
+    else:
+        from services.aidc_core import _core_generate_barcode
+        result = _core_generate_barcode(payload, barcode_type=kind, format=fmt)
+
+    if not result.get("success"):
+        return jsonify({"error": result.get("error", "Generování selhalo")}), 400
+
+    # Klíčový krok: Vrácení binárních dat (BLOB) pro zobrazení obrázku v UI
+    return send_file(
+        io.BytesIO(result['bytes']),
+        mimetype=result['mime_type'],
+        as_attachment=False,  # Frontend si vytvoří URL objekt sám
+        download_name=f"suseto-code.{fmt}"
+    )
