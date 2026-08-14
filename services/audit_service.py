@@ -71,3 +71,14 @@ def write(*args, **kwargs):
     Deleguje volání na novější instanční metodu log_action.
     """
     return audit_service.log_action(*args, **kwargs)
+    
+# --- ADMIN ROUTES COMPATIBILITY WRAPPER ---
+def list_entries(*args, **kwargs):
+    """
+    Kompatibilní wrapper pro admin_routes.py.
+    Deleguje na novější metodu list_actions.
+    """
+    try:
+        return audit_service.list_actions(*args, **kwargs)
+    except AttributeError:
+        return []
