@@ -37,3 +37,15 @@ class SystemConfig(db.Model):
     value = db.Column(db.String(255), nullable=False)
     description = db.Column(db.String(255), nullable=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class GlobalScan(db.Model):
+    __tablename__ = 'global_scans'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    scan_type = db.Column(db.String(50))  # např. 'QR', 'CODE128', 'EAN13'
+    raw_data = db.Column(db.Text, nullable=True)  # Surový dekódovaný text
+    parsed_json = db.Column(db.Text, nullable=True)  # Výsledek dekódování/reverzního inženýrství
+    image_filename = db.Column(db.String(255), nullable=True)  # Název uloženého obrázku
+    ip_address = db.Column(db.String(45), nullable=True)
+
