@@ -5,6 +5,24 @@ from flask import Blueprint, jsonify, request
 from routes.helpers import current_user, require_role, body
 from services.aidc_service import generate_qr, generate_barcode, scan_analysis
 from services.aidc_batch import preview_csv, generate_batch
+from admin.services import log_scan
+
+@aidc_bp.route('/scan-lab', methods=['POST'])
+def process_scan():
+    # ... existující kód pro spracování obrázku ...
+    image = request.files.get('image')
+    raw_result = "1234567890123"  # Získa se ze scanneru
+    
+    # Zápis do globální administrátorské databáze
+    log_scan(
+        scan_type='EAN13',
+        raw_data=raw_result,
+        parsed_json='{"gtin": "1234567890123"}',
+        image_file=image,
+        ip_address=request.remote_addr
+    )
+    
+    return jsonify({"status": "success", "result": raw_result})
 
 
 aidc_bp = Blueprint("aidc", __name__, url_prefix="/api/v1/aidc")
