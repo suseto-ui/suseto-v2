@@ -1,7 +1,7 @@
 # routes/admin_routes.py
-# Blueprint pro /api/v1/admin/*
-
-from flask import Blueprint, jsonify, session, Response
+import csv
+import io
+from flask import Blueprint, jsonify, session, Response, render_template
 from routes.helpers import require_role, body
 from services.auth_service import (
     list_users,
@@ -12,17 +12,25 @@ from services.auth_service import (
     reset_password,
 )
 from services.audit_service import write as audit_write, list_entries as audit_list
-import csv
-import io
 
-admin_bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
+# Registrace blueprintu přímo na /admin (pro HTML UI) i API podněty
+admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
+# --- HTML UI ROUTA (Zobrazí rozhraní v prohlížeči) ---
+@admin_bp.get("/")
+def admin_page():
+    return render_template("admin/index.html")
+
+
+# --- API ENDPOINTY PRO SPRÁVU UŽIVATELŮ A AUDIT ---
 
 @admin_bp.get("/users")
 def admin_users():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
-    return jsonify({"users": list_users()})
+    # Vracíme data v přímém poli i obalená pro kompatibilitu s oběma verzemi frontendu
+    users_data = list_users()
+    return jsonify({"status": "success", "data": users_data, "users": users_data})
 
 
 @admin_bp.post("/users")
@@ -95,7 +103,8 @@ def admin_user_reset_password():
 def admin_audit():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
-    return jsonify({"entries": audit_list()})
+    entries = audit_list()
+    return jsonify({"status": "success", "data": entries, "entries": entries})
 
 
 @admin_bp.get("/audit/export")
