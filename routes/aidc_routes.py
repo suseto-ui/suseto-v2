@@ -1,5 +1,6 @@
 # routes/aidc_routes.py
 # Blueprint pro /api/v1/aidc/*
+import base64
 
 from flask import Blueprint, jsonify, request
 from routes.helpers import current_user, require_role, body
