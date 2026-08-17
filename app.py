@@ -11,13 +11,12 @@ from routes.registry_routes import registry_bp
 from routes.timeline_routes import timeline_bp
 from routes.debug_routes import debug_bp
 from routes.core_routes import core_bp
-from routes.admin_routes import admin_b
 
 from services.config import CONFIG
 from services.database import db
-
 from services.audit_service import write as audit_write
 from services.auth_service import verify
+from services.workbench_routes import register_workbench
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -35,7 +34,6 @@ def create_app():
     app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(aidc_bp)
-    app.register_blueprint(admin_bp)
     app.register_blueprint(registry_bp)
     app.register_blueprint(timeline_bp)
     app.register_blueprint(debug_bp)
