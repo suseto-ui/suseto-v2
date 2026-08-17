@@ -11,6 +11,7 @@ from routes.registry_routes import registry_bp
 from routes.timeline_routes import timeline_bp
 from routes.debug_routes import debug_bp
 from routes.core_routes import core_bp
+from routes.admin_routes import admin_b
 
 from services.config import CONFIG
 from services.database import db
@@ -31,6 +32,7 @@ def create_app():
     db.init_app(app)
 
     # Registrace Blueprintů
+    app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(aidc_bp)
     app.register_blueprint(admin_bp)
