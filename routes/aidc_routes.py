@@ -6,6 +6,8 @@ from routes.helpers import current_user, require_role, body
 from services.aidc_service import generate_qr, generate_barcode, scan_analysis
 from services.aidc_batch import preview_csv, generate_batch
 from admin.services import log_scan
+aidc_bp = Blueprint('aidc', __name__)
+aidc_bp = Blueprint("aidc", __name__, url_prefix="/api/v1/aidc")
 
 @aidc_bp.route('/scan-lab', methods=['POST'])
 def process_scan():
@@ -23,9 +25,6 @@ def process_scan():
     )
     
     return jsonify({"status": "success", "result": raw_result})
-
-
-aidc_bp = Blueprint("aidc", __name__, url_prefix="/api/v1/aidc")
 
 
 @aidc_bp.post("/generate")
