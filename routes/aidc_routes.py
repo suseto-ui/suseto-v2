@@ -51,7 +51,8 @@ def aidc_generate():
 
     try:
         result = generate_qr(data, kind, fmt) if kind == "qr" else generate_barcode(data, kind, fmt)
-        return jsonify({"ok": True, "result": result})
+        encoded_result = base64.b64encode(result).decode('utf-8')
+        return jsonify({"ok": True, "result": encoded_result})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 
