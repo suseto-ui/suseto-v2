@@ -1,7 +1,7 @@
 # routes/admin_routes.py
 import csv
 import io
-from flask import Blueprint, jsonify, session, Response, render_template
+from flask import Blueprint, jsonify, session, Response
 from routes.helpers import require_role, body
 from services.auth_service import (
     list_users,
@@ -13,22 +13,14 @@ from services.auth_service import (
 )
 from services.audit_service import write as audit_write, list_entries as audit_list
 
-# Registrace blueprintu přímo na /admin (pro HTML UI) i API podněty
-admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
+# Registrace blueprintu s prefixem odpovídajícím API požadavkům z frontendu
+admin_bp = Blueprint("admin", __name__, url_prefix="/api/v1/admin")
 
-# --- HTML UI ROUTA (Zobrazí rozhraní v prohlížeči) ---
-@admin_bp.get("/")
-def admin_page():
-    return render_template("admin/index.html")
-
-
-# --- API ENDPOINTY PRO SPRÁVU UŽIVATELŮ A AUDIT ---
 
 @admin_bp.get("/users")
 def admin_users():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
-    # Vracíme data v přímém poli i obalená pro kompatibilitu s oběma verzemi frontendu
     users_data = list_users()
     return jsonify({"status": "success", "data": users_data, "users": users_data})
 
@@ -38,10 +30,13 @@ def admin_user_create():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
     try:
-        res = create_user(
-            body().get("username"), body().get("password"), body().get("role", "viewer")
-        )
-        audit_write("create_user", session.get("username"), res["username"])
+        username = body().get("username")
+        password = body().get("password")
+        role = body().get("role", "viewer")
+        if role not in ["viewer", "operator", "admin"]:
+            return jsonify({"error": "Neplatná role."}), 400
+        res = create_user(username, password, role)
+        audit_write("create_user", session.get("username"), res.get("username", username))
         return jsonify(res), 201
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -52,12 +47,12 @@ def admin_user_role():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
     try:
-        res = set_role(body().get("username"), body().get("role", "viewer"))
-        audit_write(
-            "set_role",
-            session.get("username"),
-            f"{body().get('username')}->{body().get('role')}",
-        )
+        username = body().get("username")
+        role = body().get("role", "viewer")
+        if role not in ["viewer", "operator", "admin"]:
+            return jsonify({"error": "Neplatná role."}), 400
+        res = set_role(username, role)
+        audit_write("set_role", session.get("username"), f"{username}->{role}")
         return jsonify(res)
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
@@ -68,8 +63,9 @@ def admin_user_toggle():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
     try:
-        res = toggle_active(body().get("username"))
-        audit_write("toggle_active", session.get("username"), body().get("username"))
+        username = body().get("username")
+        res = toggle_active(username)
+        audit_write("toggle_active", session.get("username"), username)
         return jsonify(res)
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
@@ -80,8 +76,9 @@ def admin_user_delete():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
     try:
-        res = delete_user(body().get("username"))
-        audit_write("delete_user", session.get("username"), body().get("username"))
+        username = body().get("username")
+        res = delete_user(username)
+        audit_write("delete_user", session.get("username"), username)
         return jsonify(res)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -92,8 +89,10 @@ def admin_user_reset_password():
     if not require_role("admin"):
         return jsonify({"error": "Vyžadována role admin."}), 403
     try:
-        res = reset_password(body().get("username"), body().get("new_password", ""))
-        audit_write("reset_password", session.get("username"), body().get("username"))
+        username = body().get("username")
+        new_password = body().get("new_password", "")
+        res = reset_password(username, new_password)
+        audit_write("reset_password", session.get("username"), username)
         return jsonify(res)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
