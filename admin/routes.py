@@ -6,6 +6,38 @@ from . import admin_bp
 from .models import db, AdminUser, SystemLog, SystemConfig
 from .utils import role_required
 
+from flask import send_from_directory
+from .services import UPLOAD_FOLDER
+
+@admin_bp.route('/scans', methods=['GET'])
+@login_required
+@role_required('admin')
+def get_all_scans():
+    page = request.args.get('page', 1, type=int)
+    limit = request.args.get('limit', 50, type=int)
+    
+    pagination = GlobalScan.query.order_by(GlobalScan.timestamp.desc()).paginate(page=page, per_page=limit, error_out=False)
+    
+    scans = [{
+        "id": s.id,
+        "timestamp": s.timestamp.isoformat(),
+        "scan_type": s.scan_type,
+        "raw_data": s.raw_data,
+        "parsed_json": s.parsed_json,
+        "image_url": f"/admin/scans/image/{s.image_filename}" if s.image_filename else None,
+        "ip_address": s.ip_address
+    } for s in pagination.items]
+    
+    return jsonify({"status": "success", "data": scans, "total": pagination.total}), 200
+
+@admin_bp.route('/scans/image/<filename>', methods=['GET'])
+@login_required
+@role_required('admin')
+def get_scan_image(filename):
+    # Zabezpečené doručení souboru fotky pouze přihlášenému adminovi
+    return send_from_directory(UPLOAD_FOLDER, filename)
+
+
 @admin_bp.route('/login', methods=['POST'])
 def login():
     if current_user.is_authenticated:
